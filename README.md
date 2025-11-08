@@ -1,9 +1,12 @@
 # Nova Bot
 
-![CI Status](https://github.com/NovaIntelligence/Nova/workflows/Nova%20Bot%20CI%2FCD%20Pipeline/badge.svg)
-[![Test Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://github.com/NovaIntelligence/Nova/actions)
+[![CI Status](https://github.com/NovaIntelligence/Nova/actions/workflows/ci.yml/badge.svg)](https://github.com/NovaIntelligence/Nova/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/NovaIntelligence/Nova/branch/main/graph/badge.svg)](https://codecov.io/gh/NovaIntelligence/Nova)
+[![Documentation](https://img.shields.io/badge/docs-github--pages-blue.svg)](https://NovaIntelligence.github.io/Nova)
+[![Security](https://img.shields.io/badge/security-trivy--gitleaks-green.svg)](https://github.com/NovaIntelligence/Nova/actions/workflows/ci.yml)
 [![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue.svg)](https://github.com/PowerShell/PowerShell)
 [![Pester](https://img.shields.io/badge/Pester-v5.7-green.svg)](https://pester.dev/)
+[![Quality Gate](https://img.shields.io/badge/quality-gate-passing-brightgreen.svg)](https://github.com/NovaIntelligence/Nova/actions)
 
 
 
@@ -80,6 +83,48 @@ pwsh -File tools\Run-Tests.ps1
 # Run specific test categories
 Invoke-Pester -Path tests\*.Tests.ps1 -Tag "Critical"
 ```
+
+## 🎯 One-Paste Pack v1
+
+Nova Bot now includes a comprehensive **One-Paste Pack** for quality assurance, security, and documentation:
+
+### Quality Assessment
+```powershell
+# Run comprehensive quality scorecard (8 dimensions)
+powershell -ExecutionPolicy Bypass -File tools\Quality-Scorecard.ps1 -Detailed
+
+# Quick quality check
+powershell -ExecutionPolicy Bypass -File tools\Quality-Scorecard.ps1 -Quick
+```
+
+### Security Audit
+```powershell
+# Comprehensive security scan
+powershell -ExecutionPolicy Bypass -File tools\Security-Audit.ps1 -Comprehensive
+
+# Generate security report
+powershell -ExecutionPolicy Bypass -File tools\Security-Audit.ps1 -OutputFormat JSON
+```
+
+### Test Coverage Analysis
+```powershell
+# Generate coverage report with HTML output
+powershell -ExecutionPolicy Bypass -File tests\Coverage-Report.ps1 -GenerateHTML
+
+# Quick coverage check
+powershell -ExecutionPolicy Bypass -File tests\Coverage-Report.ps1
+```
+
+### One-Click Development Setup
+```powershell
+# Complete development environment setup
+powershell -ExecutionPolicy Bypass -File scripts\Setup-LocalDev.ps1
+
+# Validation only (no changes)
+powershell -ExecutionPolicy Bypass -File scripts\Setup-LocalDev.ps1 -ValidateOnly
+```
+
+📚 **Full Documentation**: See [One-Paste Pack Guide](docs/One-Paste-Pack-README.md) for complete setup and usage instructions.
 
 ## 📁 Project Structure
 

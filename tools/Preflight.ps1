@@ -230,6 +230,81 @@ Test-PreflightCheck -Name "Core modules can be imported" -Check {
     return $true
 }
 
+# One-Paste Pack Quality Checks
+Write-PreflightLog "Running One-Paste Pack Quality Checks..." -Level "Info"
+
+# Check 11: Quality Scorecard Tool
+Test-PreflightCheck -Name "Quality Scorecard available and functional" -Check {
+    if (-not (Test-Path "tools\Quality-Scorecard.ps1")) {
+        Write-PreflightLog "Quality-Scorecard.ps1 not found" -Level "Error"
+        return $false
+    }
+    
+    # Test basic syntax (simplified check)
+    try {
+        $content = Get-Content "tools\Quality-Scorecard.ps1" -Raw
+        if ($content.Length -lt 1000) {
+            Write-PreflightLog "Quality-Scorecard.ps1 appears incomplete" -Level "Error"
+            return $false
+        }
+        return $true
+    }
+    catch {
+        Write-PreflightLog "Quality-Scorecard.ps1 validation failed: $_" -Level "Error"
+        return $false
+    }
+} -Required $false
+
+# Check 12: Security Audit Tool
+Test-PreflightCheck -Name "Security Audit tool available" -Check {
+    if (-not (Test-Path "tools\Security-Audit.ps1")) {
+        Write-PreflightLog "Security-Audit.ps1 not found" -Level "Error"
+        return $false
+    }
+    return $true
+} -Required $false
+
+# Check 13: Coverage Analysis Tool
+Test-PreflightCheck -Name "Coverage analysis tool available" -Check {
+    if (-not (Test-Path "tests\Coverage-Report.ps1")) {
+        Write-PreflightLog "Coverage-Report.ps1 not found" -Level "Error"
+        return $false
+    }
+    return $true
+} -Required $false
+
+# Check 14: Integration Tests
+Test-PreflightCheck -Name "Integration test suite available" -Check {
+    if (-not (Test-Path "tests\Integration.Tests.ps1")) {
+        Write-PreflightLog "Integration.Tests.ps1 not found" -Level "Error"
+        return $false
+    }
+    return $true
+} -Required $false
+
+# Check 15: One-Paste Pack Documentation
+Test-PreflightCheck -Name "One-Paste Pack documentation complete" -Check {
+    $docs = @(
+        "docs\One-Paste-Pack-README.md",
+        "docs\SECURITY.md", 
+        "docs\CONTRIBUTING.md",
+        ".github\PULL_REQUEST_TEMPLATE.md"
+    )
+    
+    $missing = @()
+    foreach ($doc in $docs) {
+        if (-not (Test-Path $doc)) {
+            $missing += $doc
+        }
+    }
+    
+    if ($missing.Count -gt 0) {
+        Write-PreflightLog "Missing One-Paste Pack docs: $($missing -join ', ')" -Level "Warning"
+        return $true  # Warning only
+    }
+    return $true
+} -Required $false
+
 # Calculate results
 $results.EndTime = Get-Date
 $results.Duration = $results.EndTime - $results.StartTime

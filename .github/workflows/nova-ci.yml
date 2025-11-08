@@ -54,6 +54,29 @@ jobs:
           Write-Warning "Preflight.ps1 not found, skipping preflight checks"
         }
         
+    - name: One-Paste Pack Quality Gates
+      shell: pwsh
+      run: |
+        Write-Host "=== One-Paste Pack Quality Assessment ===" -ForegroundColor Cyan
+        
+        # Run Quality Scorecard
+        if (Test-Path "tools\Quality-Scorecard.ps1") {
+          Write-Host "Running Quality Scorecard..." -ForegroundColor Yellow
+          powershell -ExecutionPolicy Bypass -File "tools\Quality-Scorecard.ps1" -OutputFormat JSON -OutputPath "ci-artifacts\quality-score.json"
+        }
+        
+        # Run Security Audit
+        if (Test-Path "tools\Security-Audit.ps1") {
+          Write-Host "Running Security Audit..." -ForegroundColor Yellow
+          powershell -ExecutionPolicy Bypass -File "tools\Security-Audit.ps1" -OutputFormat JSON -OutputPath "ci-artifacts\security-report.json"
+        }
+        
+        # Run Coverage Analysis
+        if (Test-Path "tests\Coverage-Report.ps1") {
+          Write-Host "Running Coverage Analysis..." -ForegroundColor Yellow
+          powershell -ExecutionPolicy Bypass -File "tests\Coverage-Report.ps1" -OutputFormat JSON -OutputPath "ci-artifacts\coverage-report.json"
+        }
+        
     - name: Run Test Suite
       shell: pwsh
       run: |
