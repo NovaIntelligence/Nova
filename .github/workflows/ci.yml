@@ -202,177 +202,37 @@ jobs:
     - name: Create docs artifacts directory
       run: mkdir -p artifacts/docs/site
     
-    - name: Generate PowerShell documentation
+    - name: Run multi-stack documentation build
       shell: pwsh
       run: |
-        Write-Host "Generating PowerShell module documentation..."
-        Import-Module PlatyPS -Force
+        Write-Host "🚀 Running Nova Bot multi-stack documentation pipeline..."
         
-        # Create docs directory structure
-        New-Item -ItemType Directory -Path "artifacts/docs/powershell" -Force | Out-Null
+        # Navigate to docs directory and run the orchestrator
+        cd docs
+        .\Build-All-Docs.ps1 -OutputPath "..\artifacts\docs\site" -Force -Verbose
         
-        # Generate markdown help for each module
-        $modules = @('Nova.Metrics', 'Nova.StateMachine', 'Nova.Skills')
-        foreach ($module in $modules) {
-          $modulePath = "modules/$module.ps1"
-          if (Test-Path $modulePath) {
-            Write-Host "  Processing module: $module"
-            
-            # Import module temporarily for documentation
-            try {
-              Import-Module $modulePath -Force -ErrorAction SilentlyContinue
-              
-              # Generate markdown documentation
-              $docPath = "artifacts/docs/powershell/$module"
-              New-Item -ItemType Directory -Path $docPath -Force | Out-Null
-              
-              New-MarkdownHelp -Module $module -OutputFolder $docPath -Force -ErrorAction Continue
-              Write-Host "    ✅ Documentation generated for $module"
-            }
-            catch {
-              Write-Host "    ⚠️ Could not generate docs for $module`: $($_.Exception.Message)"
-            }
-          }
-        }
-        
-        Write-Host "PowerShell documentation generation complete!"
+        Write-Host "✅ Multi-stack documentation build completed!"
     
-    - name: Generate Sphinx documentation
+    - name: Verify documentation build
       run: |
-        echo "Setting up Sphinx documentation..."
-        mkdir -p artifacts/docs/sphinx
+        echo "📊 Documentation Build Verification:"
         
-        # Create basic Sphinx configuration
-        cat > artifacts/docs/sphinx/conf.py << 'EOF'
-        project = 'Nova Bot'
-        copyright = '2025, Nova Team'
-        author = 'Nova Team'
-        extensions = ['myst_parser', 'sphinx_copybutton']
-        html_theme = 'sphinx_rtd_theme'
-        html_static_path = ['_static']
-        source_suffix = {'.rst': None, '.md': 'myst_parser'}
-        EOF
-        
-        # Create main documentation index
-        cat > artifacts/docs/sphinx/index.md << 'EOF'
-        # Nova Bot Documentation
-        
-        Welcome to Nova Bot - an intelligent autonomous assistant built with PowerShell.
-        
-        ## Features
-        
-        - **Metrics System**: Comprehensive monitoring and observability
-        - **State Machine**: Deterministic state management and transitions  
-        - **Skills Framework**: Extensible action and workflow system
-        - **Dashboard**: Real-time monitoring and control interface
-        - **Security**: Built-in security scanning and compliance checking
-        
-        ## Modules
-        
-        - [Nova.Metrics](powershell/Nova.Metrics/Nova.Metrics.html) - Metrics collection and export
-        - [Nova.StateMachine](powershell/Nova.StateMachine/Nova.StateMachine.html) - State management
-        - [Nova.Skills](powershell/Nova.Skills/Nova.Skills.html) - Action execution framework
-        
-        ## Getting Started
-        
-        ```powershell
-        # Health check
-        .\bot\nova-bot.ps1 --health
-        
-        # Start dashboard
-        .\bot\nova-bot.ps1 --dashboard
-        
-        # Run with metrics
-        .\bot\nova-bot.ps1 --metrics --prometheus
-        ```
-        EOF
-        
-        # Build Sphinx documentation
-        cd artifacts/docs/sphinx
-        sphinx-build -b html . ../site/sphinx
-        echo "✅ Sphinx documentation built successfully"
-    
-    - name: Generate TypeDoc documentation
-      run: |
-        echo "Generating TypeScript/JavaScript documentation..."
-        mkdir -p artifacts/docs/typescript
-        
-        # Find TypeScript/JavaScript files
-        if find . -name "*.ts" -o -name "*.js" | grep -v node_modules | head -1 > /dev/null; then
-          typedoc --out artifacts/docs/site/typescript \
-                  --name "Nova Bot TypeScript Documentation" \
-                  --readme README.md \
-                  --exclude "node_modules/**/*" \
-                  --excludePrivate \
-                  --excludeInternal \
-                  .
-          echo "✅ TypeDoc documentation generated"
+        # Check if documentation was built successfully
+        if [ -f "artifacts/docs/site/index.html" ]; then
+          echo "✅ Main documentation portal created"
         else
-          echo "ℹ️  No TypeScript files found, skipping TypeDoc generation"
+          echo "❌ Main documentation portal missing"
         fi
-    
-    - name: Create documentation index
-      run: |
-        echo "Creating documentation portal..."
         
-        cat > artifacts/docs/site/index.html << 'EOF'
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Nova Bot Documentation</title>
-            <style>
-                body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 2rem; }
-                .container { max-width: 800px; margin: 0 auto; }
-                .card { border: 1px solid #e1e4e8; border-radius: 6px; padding: 1.5rem; margin: 1rem 0; }
-                .card h3 { margin-top: 0; color: #0366d6; }
-                .badge { display: inline-block; padding: 0.25em 0.5em; font-size: 0.875em; 
-                         background: #28a745; color: white; border-radius: 3px; margin-right: 0.5rem; }
-                a { color: #0366d6; text-decoration: none; }
-                a:hover { text-decoration: underline; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>🤖 Nova Bot Documentation Portal</h1>
-                <p>Welcome to the comprehensive documentation for Nova Bot, an intelligent autonomous assistant.</p>
-                
-                <div class="card">
-                    <h3>📚 Core Documentation</h3>
-                    <span class="badge">Sphinx</span>
-                    <a href="sphinx/index.html">Main Documentation</a>
-                    <p>Complete user and developer documentation built with Sphinx.</p>
-                </div>
-                
-                <div class="card">
-                    <h3>⚡ PowerShell Modules</h3>
-                    <span class="badge">PlatyPS</span>
-                    <a href="../powershell/">PowerShell Module Documentation</a>
-                    <p>Auto-generated documentation for all PowerShell modules and functions.</p>
-                </div>
-                
-                <div class="card">
-                    <h3>🔧 TypeScript API</h3>
-                    <span class="badge">TypeDoc</span>
-                    <a href="typescript/index.html">TypeScript Documentation</a>
-                    <p>API documentation for TypeScript components and interfaces.</p>
-                </div>
-                
-                <div class="card">
-                    <h3>🚀 Quick Links</h3>
-                    <ul>
-                        <li><a href="https://github.com/nova-bot/nova">GitHub Repository</a></li>
-                        <li><a href="../test-results/">Test Results</a></li>
-                        <li><a href="../security/">Security Reports</a></li>
-                    </ul>
-                </div>
-            </div>
-        </body>
-        </html>
-        EOF
+        # Count generated files
+        TOTAL_FILES=$(find artifacts/docs -name "*.html" -o -name "*.md" -o -name "*.json" | wc -l)
+        echo "📁 Total documentation files generated: $TOTAL_FILES"
         
-        echo "✅ Documentation portal created"
+        # Show directory structure
+        echo "📂 Documentation structure:"
+        tree artifacts/docs || ls -la artifacts/docs
+        
+        echo "✅ Documentation verification complete"
     
     - name: Upload documentation artifacts
       uses: actions/upload-artifact@v4

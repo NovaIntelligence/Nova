@@ -1,0 +1,54 @@
+/* Custom CSS for Nova Bot Documentation */
+
+/* Custom color scheme */
+:root {
+    --nova-primary: #3498db;
+    --nova-secondary: #2c3e50;
+    --nova-accent: #e74c3c;
+    --nova-success: #27ae60;
+    --nova-warning: #f39c12;
+}
+
+/* Enhanced code blocks */
+.highlight {
+    background: #f8f9fa !important;
+    border-left: 4px solid var(--nova-primary);
+    padding: 1rem;
+    margin: 1rem 0;
+    border-radius: 4px;
+}
+
+/* Custom admonitions */
+.admonition.note {
+    border-color: var(--nova-primary);
+}
+
+.admonition.warning {
+    border-color: var(--nova-warning);
+}
+
+.admonition.important {
+    border-color: var(--nova-accent);
+}
+
+/* Enhanced navigation */
+.wy-nav-side {
+    background: linear-gradient(180deg, var(--nova-secondary) 0%, #34495e 100%);
+}
+
+/* Custom buttons */
+.btn-nova {
+    background-color: var(--nova-primary);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    text-decoration: none;
+    display: inline-block;
+    margin: 0.5rem 0;
+}
+
+.btn-nova:hover {
+    background-color: #2980b9;
+    color: white;
+    text-decoration: none;
+}

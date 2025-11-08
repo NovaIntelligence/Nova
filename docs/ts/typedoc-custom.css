@@ -1,0 +1,51 @@
+/* Nova Bot TypeDoc Custom Styles */
+
+:root {
+    --nova-primary: #3498db;
+    --nova-secondary: #2c3e50;
+    --nova-accent: #e74c3c;
+}
+
+/* Custom header styling */
+.tsd-page-title {
+    background: linear-gradient(135deg, var(--nova-primary), var(--nova-secondary));
+    color: white;
+    padding: 2rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
+
+/* Enhanced navigation */
+.tsd-navigation a {
+    color: var(--nova-secondary);
+    transition: all 0.3s ease;
+}
+
+.tsd-navigation a:hover {
+    color: var(--nova-primary);
+    background: rgba(52, 152, 219, 0.1);
+}
+
+/* Custom badges */
+.tsd-flag {
+    background: var(--nova-primary);
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.8rem;
+}
+
+/* Enhanced code blocks */
+.hljs {
+    background: #f8f9fa !important;
+    border-left: 4px solid var(--nova-primary);
+    padding: 1rem;
+    border-radius: 4px;
+}
+
+/* Footer styling */
+.tsd-generator {
+    border-top: 2px solid var(--nova-primary);
+    padding-top: 1rem;
+    text-align: center;
+}
