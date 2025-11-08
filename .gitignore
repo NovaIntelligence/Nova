@@ -128,5 +128,19 @@ lessons/*
 # trading/*
 # banking/*
 
+# One-Paste Pack artifacts
+ci-artifacts/
+quality-report*.json
+security-report*.json
+coverage-report*.json
+coverage-report*.html
+*.scorecard.json
+*.audit.json
+test-simple.ps1
+
+# Quality tool temporary files
+Quality-Scorecard-Fixed.ps1
+Validate-OnePastePack.ps1
+
 # Keep important empty directories
 !.gitkeep
