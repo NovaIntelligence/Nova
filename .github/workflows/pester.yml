@@ -16,7 +16,10 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Setup PowerShell
-      uses: microsoft/setup-powershell@v1
+      shell: pwsh
+      run: |
+        Write-Host "PowerShell version: $($PSVersionTable.PSVersion)"
+        Write-Host "OS: $($PSVersionTable.OS)"
       
     - name: Set Nova Environment
       run: |
@@ -43,3 +46,4 @@ jobs:
         name: test-logs
         path: logs/**
         retention-days: 30
+

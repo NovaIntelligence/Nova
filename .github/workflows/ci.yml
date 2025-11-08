@@ -35,9 +35,10 @@ jobs:
         fetch-depth: 0
     
     - name: Setup PowerShell 7
-      uses: actions/setup-powershell@v1
-      with:
-        powershell-version: '7.x'
+      shell: pwsh
+      run: |
+        Write-Host "PowerShell version: $($PSVersionTable.PSVersion)"
+        Write-Host "OS: $($PSVersionTable.OS)"
     
     - name: Install Pester v5
       shell: pwsh
@@ -153,17 +154,21 @@ jobs:
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
-      if: always() && secrets.CODECOV_TOKEN != ''
+      if: always() && env.CODECOV_TOKEN != ''
       with:
         file: artifacts/test/coverage.xml
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
         token: ${{ secrets.CODECOV_TOKEN }}
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         
     - name: Coverage upload skipped
-      if: always() && secrets.CODECOV_TOKEN == ''
+      if: always() && env.CODECOV_TOKEN == ''
       run: echo "ℹ️ Codecov upload skipped - CODECOV_TOKEN not configured"
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   docs:
     name: Build Documentation
@@ -176,9 +181,10 @@ jobs:
         fetch-depth: 0
     
     - name: Setup PowerShell 7
-      uses: actions/setup-powershell@v1
-      with:
-        powershell-version: '7.x'
+      shell: pwsh
+      run: |
+        Write-Host "PowerShell version: $($PSVersionTable.PSVersion)"
+        Write-Host "OS: $($PSVersionTable.OS)"
     
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -281,10 +287,11 @@ jobs:
       run: |
         echo "Generating Software Bill of Materials..."
         
-        # Generate SBOM in multiple formats
-        syft . -o json=artifacts/security/sbom.json
-        syft . -o spdx-json=artifacts/security/sbom.spdx.json
-        syft . -o cyclonedx-json=artifacts/security/sbom.cyclonedx.json
+        # Create SBOM output directory
+        mkdir -p artifacts/security/sbom
+        
+        # Generate SBOM using configuration file
+        syft . -c security/sbom/syft.yaml
         
         echo "✅ SBOM generated successfully"
         
@@ -296,29 +303,41 @@ jobs:
       run: |
         echo "Running Trivy vulnerability scan..."
         
-        # Scan filesystem for vulnerabilities
+        # Create Trivy output directory
+        mkdir -p artifacts/security/trivy
+        
+        # Scan filesystem for vulnerabilities with config file
         trivy fs . \
+          --config security/trivy/trivy.yaml \
           --format json \
-          --output artifacts/security/trivy-fs.json \
+          --output artifacts/security/trivy/results.json \
+          --severity HIGH,CRITICAL
+        
+        # Generate SARIF report for GitHub Security
+        trivy fs . \
+          --config security/trivy/trivy.yaml \
+          --format sarif \
+          --output artifacts/security/trivy/results.sarif \
           --severity HIGH,CRITICAL
         
         # Generate HTML report
         trivy fs . \
+          --config security/trivy/trivy.yaml \
           --format template \
           --template '@contrib/html.tpl' \
-          --output artifacts/security/trivy-report.html \
+          --output artifacts/security/trivy/report.html \
           --severity HIGH,CRITICAL
         
         # Generate summary report
         trivy fs . \
+          --config security/trivy/trivy.yaml \
           --format table \
-          --severity HIGH,CRITICAL \
-          --output artifacts/security/trivy-summary.txt
+          --severity HIGH,CRITICAL > artifacts/security/trivy/summary.txt
         
         echo "✅ Trivy scan completed"
         
         # Check for HIGH/CRITICAL vulnerabilities
-        HIGH_CRITICAL_COUNT=$(trivy fs . --format json --severity HIGH,CRITICAL --quiet | jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length')
+        HIGH_CRITICAL_COUNT=$(trivy fs . --config security/trivy/trivy.yaml --format json --severity HIGH,CRITICAL --quiet | jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length')
         
         echo "🔍 Vulnerability Summary:"
         echo "  HIGH/CRITICAL vulnerabilities found: $HIGH_CRITICAL_COUNT"
@@ -335,24 +354,52 @@ jobs:
       run: |
         echo "Running Gitleaks secret detection..."
         
-        # Run gitleaks scan
+        # Create Gitleaks output directory
+        mkdir -p artifacts/security/gitleaks
+        
+        # Run gitleaks scan with config file
         if gitleaks detect \
+          --config security/gitleaks/gitleaks.toml \
           --source . \
           --report-format json \
-          --report-path artifacts/security/gitleaks.json \
+          --report-path artifacts/security/gitleaks/results.json \
           --verbose; then
           echo "✅ No secrets detected by Gitleaks"
-          echo '{"secrets_found": false, "total_secrets": 0}' > artifacts/security/gitleaks-summary.json
+          echo '{"secrets_found": false, "total_secrets": 0}' > artifacts/security/gitleaks/summary.json
+          
+          # Generate SARIF report for GitHub Security (empty)
+          cat > artifacts/security/gitleaks/results.sarif << EOF
+        {
+          "version": "2.1.0",
+          "\$schema": "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0.json",
+          "runs": [
+            {
+              "tool": {
+                "driver": {
+                  "name": "gitleaks",
+                  "informationUri": "https://github.com/gitleaks/gitleaks"
+                }
+              },
+              "results": []
+            }
+          ]
+        }
+        EOF
         else
           GITLEAKS_EXIT_CODE=$?
           echo "❌ Secrets detected by Gitleaks!"
           
+          # Generate SARIF format from JSON results
+          if command -v sarif-fmt >/dev/null 2>&1; then
+            sarif-fmt artifacts/security/gitleaks/results.json > artifacts/security/gitleaks/results.sarif 2>/dev/null || true
+          fi
+          
           # Generate summary
-          SECRETS_COUNT=$(jq length artifacts/security/gitleaks.json 2>/dev/null || echo "0")
-          echo "{\"secrets_found\": true, \"total_secrets\": $SECRETS_COUNT}" > artifacts/security/gitleaks-summary.json
+          SECRETS_COUNT=$(jq length artifacts/security/gitleaks/results.json 2>/dev/null || echo "0")
+          echo "{\"secrets_found\": true, \"total_secrets\": $SECRETS_COUNT}" > artifacts/security/gitleaks/summary.json
           
           # Generate HTML report
-          cat > artifacts/security/gitleaks-report.html << EOF
+          cat > artifacts/security/gitleaks/report.html << EOF
         <!DOCTYPE html>
         <html><head><title>Gitleaks Security Report</title></head>
         <body>
@@ -360,7 +407,7 @@ jobs:
         <p><strong>Status:</strong> <span style="color: red;">FAILED - Secrets Detected</span></p>
         <p><strong>Total Secrets Found:</strong> $SECRETS_COUNT</p>
         <h2>Details</h2>
-        <pre>$(cat artifacts/security/gitleaks.json | jq . || echo "Error reading gitleaks results")</pre>
+        <pre>$(cat artifacts/security/gitleaks/results.json | jq . || echo "Error reading gitleaks results")</pre>
         </body></html>
         EOF
           
@@ -374,9 +421,9 @@ jobs:
         echo "Creating security dashboard..."
         
         # Read scan results
-        TRIVY_COUNT=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length' artifacts/security/trivy-fs.json 2>/dev/null || echo "0")
-        GITLEAKS_STATUS=$(jq -r '.secrets_found' artifacts/security/gitleaks-summary.json 2>/dev/null || echo "false")
-        SECRETS_COUNT=$(jq -r '.total_secrets' artifacts/security/gitleaks-summary.json 2>/dev/null || echo "0")
+        TRIVY_COUNT=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length' artifacts/security/trivy/results.json 2>/dev/null || echo "0")
+        GITLEAKS_STATUS=$(jq -r '.secrets_found' artifacts/security/gitleaks/summary.json 2>/dev/null || echo "false")
+        SECRETS_COUNT=$(jq -r '.total_secrets' artifacts/security/gitleaks/summary.json 2>/dev/null || echo "0")
         
         # Create dashboard HTML
         cat > artifacts/security/index.html << EOF
@@ -428,25 +475,27 @@ jobs:
                         <div>
                             <h3>🔍 Vulnerability Analysis</h3>
                             <ul>
-                                <li><a href="trivy-report.html">Trivy HTML Report</a></li>
-                                <li><a href="trivy-fs.json">Trivy JSON Results</a></li>
-                                <li><a href="trivy-summary.txt">Vulnerability Summary</a></li>
+                                <li><a href="trivy/report.html">Trivy HTML Report</a></li>
+                                <li><a href="trivy/results.json">Trivy JSON Results</a></li>
+                                <li><a href="trivy/results.sarif">Trivy SARIF Results</a></li>
+                                <li><a href="trivy/summary.txt">Vulnerability Summary</a></li>
                             </ul>
                         </div>
                         <div>
                             <h3>🔐 Secret Scanning</h3>
                             <ul>
-                                <li><a href="gitleaks-report.html">Gitleaks HTML Report</a></li>
-                                <li><a href="gitleaks.json">Gitleaks JSON Results</a></li>
-                                <li><a href="gitleaks-summary.json">Scan Summary</a></li>
+                                <li><a href="gitleaks/report.html">Gitleaks HTML Report</a></li>
+                                <li><a href="gitleaks/results.json">Gitleaks JSON Results</a></li>
+                                <li><a href="gitleaks/results.sarif">Gitleaks SARIF Results</a></li>
+                                <li><a href="gitleaks/summary.json">Scan Summary</a></li>
                             </ul>
                         </div>
                         <div>
                             <h3>📦 Software Bill of Materials</h3>
                             <ul>
-                                <li><a href="sbom.json">SBOM (JSON)</a></li>
-                                <li><a href="sbom.spdx.json">SBOM (SPDX)</a></li>
-                                <li><a href="sbom.cyclonedx.json">SBOM (CycloneDX)</a></li>
+                                <li><a href="sbom/sbom.syft.json">SBOM (Syft JSON)</a></li>
+                                <li><a href="sbom/sbom.spdx.json">SBOM (SPDX)</a></li>
+                                <li><a href="sbom/sbom.cyclonedx.json">SBOM (CycloneDX)</a></li>
                             </ul>
                         </div>
                     </div>
@@ -466,6 +515,20 @@ jobs:
         
         echo "✅ Security dashboard created"
     
+    - name: Upload Trivy SARIF to GitHub Security
+      uses: github/codeql-action/upload-sarif@v3
+      if: always() && github.actor != 'dependabot[bot]'
+      with:
+        sarif_file: artifacts/security/trivy/results.sarif
+        category: "trivy-fs-scan"
+        
+    - name: Upload Gitleaks SARIF to GitHub Security  
+      uses: github/codeql-action/upload-sarif@v3
+      if: always() && github.actor != 'dependabot[bot]' && hashFiles('artifacts/security/gitleaks/results.sarif') != ''
+      with:
+        sarif_file: artifacts/security/gitleaks/results.sarif
+        category: "gitleaks-secrets-scan"
+    
     - name: Upload security artifacts
       uses: actions/upload-artifact@v4
       if: always()
@@ -479,10 +542,6 @@ jobs:
     needs: [build-and-test, docs]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-    
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     
     steps:
     - name: Download documentation artifacts
@@ -516,3 +575,5 @@ jobs:
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v4
+
+
