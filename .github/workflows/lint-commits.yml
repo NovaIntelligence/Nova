@@ -1,0 +1,281 @@
+name: Lint Commit Messages
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+    branches: [master, main, develop]
+  push:
+    branches: [master, main]
+
+jobs:
+  lint-commits:
+    name: Validate Conventional Commits
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install Commitlint
+        run: |
+          npm install -g @commitlint/cli @commitlint/config-conventional
+          
+      - name: Create Commitlint Config
+        run: |
+          cat > commitlint.config.js << 'EOF'
+          module.exports = {
+            extends: ['@commitlint/config-conventional'],
+            rules: {
+              'type-enum': [
+                2,
+                'always',
+                [
+                  'build',     // Changes that affect the build system or external dependencies
+                  'chore',     // Other changes that don't modify src or test files
+                  'ci',        // Changes to CI configuration files and scripts
+                  'docs',      // Documentation only changes
+                  'feat',      // A new feature
+                  'fix',       // A bug fix
+                  'perf',      // A code change that improves performance
+                  'refactor',  // A code change that neither fixes a bug nor adds a feature
+                  'revert',    // Reverts a previous commit
+                  'style',     // Changes that do not affect the meaning of the code
+                  'test',      // Adding missing tests or correcting existing tests
+                  'security'   // Security-related changes
+                ]
+              ],
+              'type-case': [2, 'always', 'lower-case'],
+              'type-empty': [2, 'never'],
+              'scope-case': [2, 'always', 'lower-case'],
+              'subject-case': [2, 'always', 'sentence-case'],
+              'subject-empty': [2, 'never'],
+              'subject-full-stop': [2, 'never', '.'],
+              'header-max-length': [2, 'always', 100],
+              'body-leading-blank': [1, 'always'],
+              'body-max-line-length': [2, 'always', 100],
+              'footer-leading-blank': [1, 'always'],
+              'footer-max-line-length': [2, 'always', 100]
+            }
+          };
+          EOF
+          
+      - name: Lint Pull Request Commits
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "Validating commits in PR #${{ github.event.number }}"
+          
+          # Get the commit range for this PR
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          
+          echo "Commit range: $BASE_SHA..$HEAD_SHA"
+          
+          # Get commit messages in the PR
+          COMMITS=$(git log --format="%H" "$BASE_SHA..$HEAD_SHA")
+          
+          if [ -z "$COMMITS" ]; then
+            echo "No commits found in PR"
+            exit 0
+          fi
+          
+          echo "Commits to validate:"
+          echo "$COMMITS"
+          
+          # Validate each commit
+          EXIT_CODE=0
+          for commit in $COMMITS; do
+            echo ""
+            echo "=== Validating commit: $commit ==="
+            COMMIT_MSG=$(git log --format="%s" -n 1 "$commit")
+            echo "Message: $COMMIT_MSG"
+            
+            if echo "$COMMIT_MSG" | npx commitlint; then
+              echo "✅ Commit $commit passes conventional commit format"
+            else
+              echo "❌ Commit $commit fails conventional commit format"
+              EXIT_CODE=1
+            fi
+          done
+          
+          if [ $EXIT_CODE -eq 1 ]; then
+            echo ""
+            echo "=== CONVENTIONAL COMMIT FORMAT ==="
+            echo "Expected format: type(scope): subject"
+            echo ""
+            echo "Types: feat, fix, docs, style, refactor, test, chore, build, ci, perf, revert, security"
+            echo "Scope: optional, describes the area of change (e.g., dashboard, metrics, security)"
+            echo "Subject: brief description starting with lowercase, no period at end"
+            echo ""
+            echo "Examples:"
+            echo "  feat(dashboard): add real-time metrics display"
+            echo "  fix(security): resolve path traversal vulnerability"
+            echo "  docs: update installation instructions"
+            echo "  chore(deps): update PowerShell modules"
+            echo ""
+            exit 1
+          fi
+          
+      - name: Lint Push Commits
+        if: github.event_name == 'push'
+        run: |
+          echo "Validating latest commit on push"
+          LATEST_COMMIT=$(git rev-parse HEAD)
+          COMMIT_MSG=$(git log --format="%s" -n 1 "$LATEST_COMMIT")
+          
+          echo "Validating commit: $LATEST_COMMIT"
+          echo "Message: $COMMIT_MSG"
+          
+          if echo "$COMMIT_MSG" | npx commitlint; then
+            echo "✅ Latest commit passes conventional commit format"
+          else
+            echo "❌ Latest commit fails conventional commit format"
+            echo ""
+            echo "=== CONVENTIONAL COMMIT FORMAT ==="
+            echo "Expected format: type(scope): subject"
+            echo "Examples: feat(dashboard): add metrics, fix(security): resolve vulnerability"
+            exit 1
+          fi
+          
+      - name: Comment PR with Guidelines
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo, number } = context.issue;
+            
+            const comment = `## ❌ Conventional Commit Validation Failed
+            
+            Your commit messages don't follow the [Conventional Commits](https://www.conventionalcommits.org/) specification.
+            
+            ### Required Format
+            \`\`\`
+            type(scope): subject
+            \`\`\`
+            
+            ### Available Types
+            - **feat**: New feature
+            - **fix**: Bug fix  
+            - **docs**: Documentation changes
+            - **style**: Code style changes (formatting, missing semi-colons, etc)
+            - **refactor**: Code refactoring
+            - **test**: Adding or updating tests
+            - **chore**: Maintenance tasks
+            - **build**: Build system changes
+            - **ci**: CI/CD changes
+            - **perf**: Performance improvements
+            - **revert**: Revert previous commit
+            - **security**: Security-related changes
+            
+            ### Examples
+            \`\`\`
+            feat(dashboard): add real-time metrics display
+            fix(security): resolve path traversal vulnerability  
+            docs: update README installation steps
+            test(metrics): add unit tests for counter functions
+            chore(deps): update Pester to v5.7.0
+            \`\`\`
+            
+            ### Guidelines
+            - Use lowercase for type and scope
+            - Keep subject under 100 characters
+            - Start subject with lowercase letter
+            - Don't end subject with period
+            - Use imperative mood ("add" not "adds" or "added")
+            
+            Please update your commit messages and force-push to this branch.`;
+            
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: number,
+              body: comment
+            });
+            
+  validate-branch-name:
+    name: Validate Branch Name
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Check Branch Name Convention
+        run: |
+          BRANCH_NAME="${{ github.head_ref }}"
+          echo "Validating branch name: $BRANCH_NAME"
+          
+          # Valid patterns: feature/, fix/, docs/, chore/, hotfix/, release/
+          if [[ "$BRANCH_NAME" =~ ^(feature|fix|docs|chore|hotfix|release|security)/.+ ]]; then
+            echo "✅ Branch name follows convention: $BRANCH_NAME"
+          elif [[ "$BRANCH_NAME" =~ ^(master|main|develop)$ ]]; then
+            echo "✅ Branch name is a protected branch: $BRANCH_NAME"
+          else
+            echo "❌ Branch name does not follow convention: $BRANCH_NAME"
+            echo ""
+            echo "Expected format: type/description"
+            echo "Valid types: feature, fix, docs, chore, hotfix, release, security"
+            echo ""
+            echo "Examples:"
+            echo "  feature/add-dashboard-metrics"
+            echo "  fix/security-vulnerability"  
+            echo "  docs/update-readme"
+            echo "  chore/update-dependencies"
+            exit 1
+          fi
+          
+      - name: Comment PR with Branch Guidelines
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo, number } = context.issue;
+            
+            const comment = `## ❌ Branch Name Validation Failed
+            
+            Your branch name doesn't follow the Nova Bot naming convention.
+            
+            ### Required Format
+            \`\`\`
+            type/description
+            \`\`\`
+            
+            ### Valid Types
+            - **feature/**: New features or enhancements
+            - **fix/**: Bug fixes
+            - **docs/**: Documentation updates  
+            - **chore/**: Maintenance, dependencies, tooling
+            - **hotfix/**: Critical production fixes
+            - **release/**: Release preparation
+            - **security/**: Security-related changes
+            
+            ### Examples
+            \`\`\`
+            feature/add-dashboard-metrics
+            fix/security-path-traversal
+            docs/update-installation-guide
+            chore/update-pester-version
+            hotfix/critical-memory-leak
+            release/v2.1.0
+            security/credential-sanitization
+            \`\`\`
+            
+            ### Guidelines
+            - Use lowercase with hyphens for separation
+            - Be descriptive but concise
+            - Avoid special characters except hyphens
+            - Match the type with your commit types
+            
+            Please rename your branch and update the pull request.`;
+            
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: number,
+              body: comment
+            });

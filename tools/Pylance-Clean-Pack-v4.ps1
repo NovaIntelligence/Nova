@@ -3,15 +3,18 @@
 
 $ErrorActionPreference = "Continue"
 
+# Import Nova.Common for centralized utilities
+Import-Module (Join-Path $PSScriptRoot "..\modules\Nova.Common\Nova.Common.psm1") -Force
+
 function Invoke-FinalFixes {
     param([string]$FilePath)
     
-    if (-not (Test-Path $FilePath)) {
-        Write-Host "File not found: $FilePath"
+    if (-not (Test-NovaPath -Path $FilePath)) {
+        Write-NovaLog -Level "ERROR" -Message "File not found: $FilePath"
         return
     }
     
-    Write-Host "Applying final surgical fixes to: $FilePath"
+    Write-NovaLog -Level "INFO" -Message "Applying final surgical fixes to: $FilePath"
     
     # Create backup
     $backupPath = $FilePath + ".v4.bak"
@@ -107,26 +110,25 @@ function Invoke-FinalFixes {
     
     [System.IO.File]::WriteAllText($FilePath, $content, [System.Text.Encoding]::UTF8)
     
-    Write-Host "Completed final surgical fixes: $FilePath (backup: $backupPath)"
+    Write-NovaLog -Level "SUCCESS" -Message "Completed final surgical fixes: $FilePath (backup: $backupPath)"
 }
 
 # Target the problematic file
 $targetFile = "D:\Nova\model\Train-And-Package.py"
 
-Write-Host "Starting Pylance Clean Pack v4 - Final Surgical Fixes..."
+Write-NovaLog -Level "INFO" -Message "Starting Pylance Clean Pack v4 - Final Surgical Fixes..."
 
 Apply-Final-Fixes -FilePath $targetFile
 
-Write-Host ""
-Write-Host "Pylance Clean Pack v4 completed!"
-Write-Host "Applied final fixes:"
-Write-Host "- Fixed variable name references (LIGHTGBM_AVAILABLE → _lightgbm_available)"
-Write-Host "- Added missing type annotations for all method parameters"
-Write-Host "- Cleaned up duplicate/unused imports"
-Write-Host "- Added missing method stubs for _train_xgboost and _evaluate_model"
-Write-Host "- Fixed train_test_split with proper type casting"
-Write-Host "- Added type: ignore comments for ML library calls"
-Write-Host "- Ensured proper file ending"
+Write-NovaLog -Level "SUCCESS" -Message "Pylance Clean Pack v4 completed!"
+Write-NovaLog -Level "INFO" -Message "Applied final fixes:"
+Write-NovaLog -Level "INFO" -Message "- Fixed variable name references (LIGHTGBM_AVAILABLE → _lightgbm_available)"
+Write-NovaLog -Level "INFO" -Message "- Added missing type annotations for all method parameters"
+Write-NovaLog -Level "INFO" -Message "- Cleaned up duplicate/unused imports"
+Write-NovaLog -Level "INFO" -Message "- Added missing method stubs for _train_xgboost and _evaluate_model"
+Write-NovaLog -Level "INFO" -Message "- Fixed train_test_split with proper type casting"
+Write-NovaLog -Level "INFO" -Message "- Added type: ignore comments for ML library calls"
+Write-NovaLog -Level "INFO" -Message "- Ensured proper file ending"
 Write-Host ""
 Write-Host "This should eliminate most remaining errors!"
 Write-Host "Please reload VS Code to see the results."

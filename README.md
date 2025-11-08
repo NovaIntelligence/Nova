@@ -1,53 +1,178 @@
-# Nova Bot
+# Nova Bot Framework
 
-[![CI Status](https://github.com/NovaIntelligence/Nova/actions/workflows/ci.yml/badge.svg)](https://github.com/NovaIntelligence/Nova/actions/workflows/ci.yml)
-[![Coverage](https://codecov.io/gh/NovaIntelligence/Nova/branch/main/graph/badge.svg)](https://codecov.io/gh/NovaIntelligence/Nova)
-[![Documentation](https://img.shields.io/badge/docs-github--pages-blue.svg)](https://NovaIntelligence.github.io/Nova)
-[![Security](https://img.shields.io/badge/security-trivy--gitleaks-green.svg)](https://github.com/NovaIntelligence/Nova/actions/workflows/ci.yml)
-[![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue.svg)](https://github.com/PowerShell/PowerShell)
-[![Pester](https://img.shields.io/badge/Pester-v5.7-green.svg)](https://pester.dev/)
+[![Build Status](https://github.com/NovaIntelligence/Nova/actions/workflows/ci.yml/badge.svg)](https://github.com/NovaIntelligence/Nova/actions/workflows/ci.yml)
+[![Tests](https://github.com/NovaIntelligence/Nova/actions/workflows/pester.yml/badge.svg)](https://github.com/NovaIntelligence/Nova/actions/workflows/pester.yml) 
+[![Coverage](https://codecov.io/gh/NovaIntelligence/Nova/branch/master/graph/badge.svg)](https://codecov.io/gh/NovaIntelligence/Nova)
+[![Documentation](https://github.com/NovaIntelligence/Nova/actions/workflows/docs.yml/badge.svg)](https://NovaIntelligence.github.io/Nova)
+[![Security](https://github.com/NovaIntelligence/Nova/actions/workflows/security.yml/badge.svg)](https://github.com/NovaIntelligence/Nova/security)
 [![Quality Gate](https://img.shields.io/badge/quality-gate-passing-brightgreen.svg)](https://github.com/NovaIntelligence/Nova/actions)
+[![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue.svg)](https://github.com/PowerShell/PowerShell)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+> **Enterprise-grade autonomous bot framework built on PowerShell with advanced monitoring, sandboxed execution, and comprehensive security controls.**
 
+Nova Bot is a sophisticated automation framework designed for mission-critical environments, featuring real-time metrics collection, secure action execution pipelines, and enterprise-grade monitoring capabilities. Built with PowerShell at its core, Nova provides robust automation solutions with comprehensive testing, documentation, and security validation.
 
-A comprehensive PowerShell-based autonomous bot framework with advanced metrics collection, sandboxed action execution, and robust failure handling capabilities.
+## 🏗️ **Architecture Overview**
 
-## 🚀 Features
+```mermaid
+graph TB
+    subgraph "Nova Bot Framework"
+        Core[Nova Core Engine]
+        Dashboard[HTTP Dashboard :8765]
+        Skills[Skills & Actions Engine]
+        Metrics[Prometheus Metrics]
+        
+        Core --> Dashboard
+        Core --> Skills
+        Core --> Metrics
+        
+        subgraph "Security Layer"
+            PathGuard[PathGuard Protection]
+            Validation[Input Validation]
+            Sandbox[Sandboxed Execution]
+        end
+        
+        Skills --> PathGuard
+        Skills --> Validation
+        Skills --> Sandbox
+        
+        subgraph "Monitoring & Observability"
+            Logs[Centralized Logging]
+            Alerts[Health Monitoring]
+            Reports[Quality Reports]
+        end
+        
+        Dashboard --> Logs
+        Metrics --> Alerts
+        Core --> Reports
+    end
+    
+    subgraph "External Integrations"
+        CI[CI/CD Pipeline]
+        Docs[Documentation Site]
+        Security[Security Scanning]
+    end
+    
+    Core -.-> CI
+    Dashboard -.-> Docs
+    Sandbox -.-> Security
+```
 
-### Core Systems
-- **📊 Metrics Collection**: Real-time performance monitoring with Prometheus export
-- **🔒 Skills & Actions**: Sandboxed execution system with approval workflows
-- **⚡ Dashboard**: HTTP-based monitoring interface on `localhost:8765`
-- **🧪 Testing Suite**: Comprehensive failure injection tests with 100% pass rate
-- **🛡️ Security**: PathGuard protection and input validation
+*Architecture diagram shows Nova's modular design with security-first principles and comprehensive monitoring capabilities.*
 
-### Advanced Capabilities
-- **Automated Learning**: Nightly learning loops with lesson archival
-- **Failure Recovery**: Robust error handling and graceful degradation
-- **Action Queue**: Secure action submission, review, and execution pipeline
-- **CI/CD Integration**: GitHub Actions with PowerShell 7 and Pester v5
+## 🧩 **Nova.Common Module**
 
-## 📋 Requirements
+Nova.Common provides centralized utilities that eliminate code duplication and ensure consistency across the entire codebase. This shared module implements the DRY (Don't Repeat Yourself) principle with enterprise-grade functions.
 
-- **PowerShell 5.1+** (PowerShell 7 recommended for CI)
-- **Pester v5+** for testing framework
-- **Git** for version control
-- **Windows** environment (primary target)
+### **Core Functions**
 
-## 🛠️ Installation
+| Function | Purpose | Example Usage |
+|----------|---------|---------------|
+| `Write-NovaLog` | Standardized logging with severity levels | `Write-NovaLog -Level "ERROR" -Message "Failed to connect" -Context "API"` |
+| `Confirm-DirectoryPath` | Safe directory creation and validation | `Confirm-DirectoryPath -Path "logs/2024"` |
+| `Test-NovaPath` | Enhanced path testing with detailed feedback | `Test-NovaPath -Path $ConfigFile -Type "File"` |
+| `Guard-NotNull` | Input validation and null checking | `Guard-NotNull -Value $ApiKey -ParameterName "ApiKey"` |
+| `Get-NovaModulePath` | Dynamic module path resolution | `Get-NovaModulePath -ModuleName "Nova.Skills"` |
+| `Convert-NovaDateTime` | Flexible datetime conversion | `Convert-NovaDateTime -InputString "2024-11-08T15:30:00"` |
+| `Format-NovaOutput` | Consistent output formatting | `Format-NovaOutput -Data $Results -Format "Table"` |
+| `Invoke-NovaRetry` | Robust retry logic with backoff | `Invoke-NovaRetry -ScriptBlock { Connect-API } -MaxAttempts 3` |
 
-1. **Clone the repository**:
-   ```powershell
-   git clone https://github.com/YOUR_USERNAME/Nova.git
-   cd Nova
-   ```
+### **Integration Benefits**
 
-2. **Run preflight checks**:
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File tools\Preflight.ps1
-   ```
+✅ **Code Consistency**: All modules use the same logging, validation, and error handling patterns  
+✅ **Reduced Duplication**: Eliminates 200+ lines of repeated code across modules  
+✅ **Better Testing**: Centralized functions mean comprehensive test coverage  
+✅ **Easy Maintenance**: Single location for common functionality updates  
+✅ **Enhanced Reliability**: Battle-tested utilities with proper error handling  
 
-3. **Install dependencies** (if needed):
+### **Usage Example**
+
+```powershell
+# Import Nova.Common in your module
+Import-Module "$PSScriptRoot\..\modules\Nova.Common\Nova.Common.psm1" -Force
+
+# Use centralized logging
+Write-NovaLog -Level "INFO" -Message "Starting data processing" -Context "DataPipeline"
+
+# Safe directory operations
+$logDir = Confirm-DirectoryPath -Path (Join-Path $Root "logs")
+
+# Input validation
+Guard-NotNull -Value $ApiEndpoint -ParameterName "ApiEndpoint"
+
+# Robust retry for network operations
+$result = Invoke-NovaRetry -ScriptBlock {
+    Invoke-RestMethod -Uri $ApiEndpoint -Method GET
+} -MaxAttempts 3 -DelaySeconds 2
+```
+
+## ⚡ **Quickstart**
+
+Get Nova Bot running locally in **one command**:
+
+```powershell
+# Clone and run complete development environment
+git clone https://github.com/NovaIntelligence/Nova.git
+cd Nova
+.\tools\One-Paste-Pack.ps1
+```
+
+The One-Paste pack automatically:
+- ✅ Runs comprehensive test suite with coverage
+- 📚 Builds multi-stack documentation (PowerShell/Python/TypeScript)  
+- �️ Performs security scanning (SBOM, vulnerabilities, secrets)
+- 📊 Generates quality scorecard with actionable insights
+- 🚀 Sets up complete development environment
+
+**Alternative manual setup:**
+```powershell
+# 1. Clone repository
+git clone https://github.com/NovaIntelligence/Nova.git
+cd Nova
+
+# 2. Run preflight checks
+.\tools\Preflight.ps1
+
+# 3. Start Nova Bot
+.\Nova.ps1
+```
+
+## 🚀 **Core Features**
+
+### **Enterprise Automation Engine**
+- **📊 Real-time Metrics**: Prometheus-compatible monitoring with custom dashboards
+- **🔒 Secure Execution**: Sandboxed action pipeline with approval workflows
+- **⚡ HTTP Dashboard**: Live monitoring interface at `localhost:8765`
+- **🧪 Comprehensive Testing**: 100% pass rate with failure injection validation
+- **🛡️ Security Controls**: PathGuard protection, input validation, and audit logging
+
+### **Advanced Intelligence Systems**
+- **🤖 Autonomous Learning**: Nightly learning loops with lesson archival
+- **🔄 Self-Healing**: Automatic failure recovery and graceful degradation
+- **📋 Action Management**: Secure submission, review, and execution queues
+- **🔍 Deep Observability**: Multi-layer monitoring with alerting and reporting
+
+### **Developer Experience**
+- **🏗️ Modular Architecture**: Plugin-based skills and extensible framework
+- **📖 Rich Documentation**: Multi-format docs with interactive examples
+- **🔧 Development Tools**: Comprehensive tooling for testing, debugging, and deployment
+- **🚀 CI/CD Ready**: GitHub Actions integration with quality gates
+
+## � **Requirements**
+
+| Component | Minimum | Recommended |
+|-----------|---------|-------------|
+| **PowerShell** | 5.1 | 7.4+ |
+| **Operating System** | Windows 10 | Windows 11 / Server 2022 |
+| **Memory** | 4GB RAM | 8GB+ RAM |
+| **Storage** | 2GB | 10GB+ |
+| **Network** | Internet (for CI/docs) | Broadband |
+
+**Dependencies:**
+- Pester v5.7+ (testing framework)
+- Git (version control)
+- Optional: Docker (containerized deployments)
    ```powershell
    Install-Module -Name Pester -MinimumVersion 5.0 -Force
    ```
@@ -118,50 +243,104 @@ powershell -ExecutionPolicy Bypass -File tests\Coverage-Report.ps1
 ### One-Click Development Setup
 ```powershell
 # Complete development environment setup
-powershell -ExecutionPolicy Bypass -File scripts\Setup-LocalDev.ps1
+.\tools\One-Paste-Pack.ps1
 
 # Validation only (no changes)
-powershell -ExecutionPolicy Bypass -File scripts\Setup-LocalDev.ps1 -ValidateOnly
+.\tools\One-Paste-Pack.ps1 -ValidateOnly
 ```
 
-📚 **Full Documentation**: See [One-Paste Pack Guide](docs/One-Paste-Pack-README.md) for complete setup and usage instructions.
+## 📚 **Documentation**
 
-## 📁 Project Structure
+Nova Bot provides comprehensive documentation across multiple formats and platforms:
+
+### **📖 Multi-Stack Documentation**
+- **[PowerShell Docs](https://NovaIntelligence.github.io/Nova/ps/)** - Module references, cmdlet help, and PowerShell-specific guides
+- **[Python Docs](https://NovaIntelligence.github.io/Nova/python/)** - Sphinx-generated API documentation and integration guides  
+- **[TypeScript Docs](https://NovaIntelligence.github.io/Nova/typescript/)** - TypeDoc API references and web component documentation
+- **[Main Documentation Portal](https://NovaIntelligence.github.io/Nova/)** - Unified documentation hub with cross-references
+
+### **📋 Quick References**
+- **[API Reference](https://NovaIntelligence.github.io/Nova/api/)** - Complete API documentation
+- **[Configuration Guide](docs/Configuration.md)** - Setup and configuration options
+- **[Development Guide](docs/Development.md)** - Contributing and development workflows
+- **[Security Guide](docs/Security.md)** - Security best practices and compliance
+
+### **🔗 GitHub Pages Integration**
+All documentation is automatically built and deployed via GitHub Actions:
+- **Build Status**: [![Documentation](https://github.com/NovaIntelligence/Nova/actions/workflows/docs.yml/badge.svg)](https://github.com/NovaIntelligence/Nova/actions/workflows/docs.yml)
+- **Live Site**: [https://NovaIntelligence.github.io/Nova/](https://NovaIntelligence.github.io/Nova/)
+- **Auto-Updates**: Documentation rebuilds on every commit to `master` branch
+
+## 📁 **Project Structure**
 
 ```
 Nova/
-├── .github/workflows/     # CI/CD pipeline configuration
+├── .github/workflows/     # CI/CD pipeline with security integration
+│   ├── ci.yml            # Main CI pipeline
+│   ├── docs.yml          # Multi-stack documentation build
+│   ├── pester.yml        # PowerShell testing
+│   └── security.yml      # Security scanning (Trivy/Gitleaks/SBOM)
 ├── modules/               # Core PowerShell modules
-│   ├── Nova.Metrics.psm1  # Metrics collection system
-│   └── Nova.Skills.psm1   # Action queue and skills management
-├── tools/                 # Operational scripts
-│   ├── Nova.Dashboard.ps1  # HTTP dashboard server
-│   ├── Approve-Actions.ps1 # Action approval TUI
-│   ├── Preflight.ps1      # Pre-CI validation checks
-│   └── Run-Tests.ps1      # Test suite runner
-├── tests/                 # Test suites
-│   └── FailureInjection.Tests.ps1  # Comprehensive failure tests
-├── data/                  # Runtime data
-│   └── queue/             # Action queue storage
-├── skills/                # Skill definitions
-└── lessons/               # Learning archives
+│   ├── Nova.Metrics.psm1  # Prometheus-compatible metrics
+│   └── Nova.Skills.psm1   # Secure action pipeline
+├── tools/                 # Development & operations tooling
+│   ├── Nova.Dashboard.ps1  # HTTP monitoring dashboard
+│   ├── One-Paste-Pack.ps1 # Complete local development environment
+│   ├── Write-Scorecard.ps1 # Quality assessment generator
+│   └── Preflight.ps1      # Pre-flight validation checks
+├── security/              # Security configuration & policies
+│   ├── trivy/trivy.yaml   # Vulnerability scanning config
+│   ├── gitleaks/gitleaks.toml # Secret detection rules
+│   └── sbom/syft.yaml     # SBOM generation settings
+├── docs/                  # Multi-format documentation
+│   ├── ps/               # PowerShell docs (PlatyPS)
+│   ├── python/           # Python docs (Sphinx)
+│   └── typescript/       # TypeScript docs (TypeDoc)
+├── tests/                 # Comprehensive test suites
+│   └── FailureInjection.Tests.ps1 # Security & resilience tests
+├── artifacts/             # Build & scan outputs
+│   ├── test/             # Test results & coverage
+│   ├── security/         # Security scan results
+│   └── scorecard/        # Quality reports
+└── data/                 # Runtime operational data
+    ├── queue/            # Action processing queues  
+    └── logs/             # Centralized logging
 ```
 
-## 🔧 Configuration
+## 🏃‍♂️ **Usage Guide**
 
-### Environment Setup
-Nova Bot automatically creates required directory structures on first run:
-- `data/queue/inbox/` - Incoming action requests
-- `data/queue/outbox/` - Processed actions
-- `logs/` - System logs and audit trails
-- `lessons/` - Learning data and archives
+### **Start Nova Bot**
+```powershell
+# Launch with dashboard
+.\Nova.ps1 -EnableDashboard
 
-### Metrics Configuration
-The metrics system runs automatically and provides:
-- **Counters**: Increment-only metrics (actions processed, errors)
-- **Gauges**: Current value metrics (queue size, memory usage)  
-- **Histograms**: Distribution metrics (response times, sizes)
-- **Daily Rotation**: Automatic log rotation and archival
+# Daemon mode (background service)
+.\tools\Nova.Dashboard.ps1 -DaemonMode
+```
+
+### **Submit Actions**
+```powershell
+# Import skills framework
+Import-Module .\modules\Nova.Skills.psm1
+
+# Submit filesystem action
+Submit-Action -Type "filesystem" -Action "create_directory" -Path "D:\Nova\temp\test"
+
+# Submit with approval workflow
+Submit-Action -Type "system" -Action "restart_service" -RequiresApproval
+```
+
+### **Monitor Operations**
+```powershell
+# View live dashboard
+Start-Process "http://localhost:8765"
+
+# Check system health
+.\tools\Health-Check.ps1
+
+# Review metrics
+Get-NovaMetrics | Format-Table
+```
 
 ## 🧪 Testing
 
@@ -177,19 +356,135 @@ Nova Bot includes comprehensive failure injection testing covering:
 - **Process Management**: Crash detection, restart throttling
 - **Metrics System**: Malformed data recovery, atomic writes
 
-### Test Execution
+### **📊 Test Execution & Coverage**
 ```powershell
-# Run all tests with coverage
-pwsh -File tools\Run-Tests.ps1
+# Comprehensive test suite with coverage
+.\tools\One-Paste-Pack.ps1
 
-# Run security-critical tests only
+# Run all tests with detailed coverage  
+Invoke-Pester -Path tests\ -CodeCoverage -PassThru
+
+# Security-critical tests only
 Invoke-Pester -Path tests\*.Tests.ps1 -Tag "Critical"
 
-# Run with detailed output
-pwsh -File tools\Run-Tests.ps1 -Detailed
+# Generate quality scorecard with test metrics
+.\tools\Write-Scorecard.ps1
 ```
 
-## 🚀 CI/CD Pipeline
+**Test Coverage Requirements**:
+- **Minimum Coverage**: 80% line coverage across all modules
+- **Critical Functions**: 100% coverage required for security-related functions
+- **Pass Rate**: 95% minimum pass rate for CI pipeline success
+- **Performance**: All tests must complete within 60 seconds
+
+## � Security & Supply Chain
+
+Nova Bot implements comprehensive security scanning and supply chain protection through automated tools integrated into the CI/CD pipeline.
+
+### 🛡️ Security Scanning Tools
+
+#### **Trivy - Vulnerability Scanner**
+- **Container & Code Scanning**: Detects vulnerabilities in dependencies and container images
+- **Severity Thresholds**: CI fails on HIGH/CRITICAL vulnerabilities
+- **Multi-Format Output**: SARIF and JSON reports for security teams
+- **Configuration**: `security/trivy/trivy.yaml`
+
+#### **Gitleaks - Secret Detection**
+- **Secret Scanning**: Detects API keys, tokens, credentials in code and history
+- **Custom Patterns**: Nova-specific patterns for comprehensive detection
+- **Zero Tolerance**: CI fails on any secret detection findings  
+- **Configuration**: `security/gitleaks/gitleaks.toml`
+
+#### **Syft - Software Bill of Materials (SBOM)**
+- **Dependency Cataloging**: Generates comprehensive SBOM for all dependencies
+- **Multi-Format Output**: SPDX-JSON, CycloneDX-JSON, Syft-JSON formats
+- **Supply Chain Visibility**: Tracks all components for vulnerability management
+- **Configuration**: `security/sbom/syft.yaml`
+
+### 📦 SBOM Generation
+
+The Software Bill of Materials provides complete visibility into Nova Bot's dependency tree:
+
+```powershell
+# Generate SBOM locally
+syft packages . -c security/sbom/syft.yaml
+
+# View SBOM summary
+cat artifacts/security/sbom.syft.json | jq '.artifacts[].name' | sort -u
+```
+
+**SBOM Includes**:
+- PowerShell modules and dependencies
+- Python packages (pip, conda, poetry)
+- Node.js/npm packages
+- .NET NuGet packages
+- Container base images and layers
+- Operating system packages
+
+### 🔍 Security Scan Execution
+
+#### **Local Security Scanning**
+```powershell
+# Run Trivy vulnerability scan
+trivy fs . --config security/trivy/trivy.yaml --format sarif --output artifacts/security/trivy/results.sarif
+
+# Run Gitleaks secret scan  
+gitleaks detect --config security/gitleaks/gitleaks.toml --report-path artifacts/security/gitleaks/results.json
+
+# Generate SBOM
+syft packages . -c security/sbom/syft.yaml
+```
+
+#### **CI Security Integration**
+The CI pipeline automatically runs security scans on every commit:
+
+1. **Pre-Build**: SBOM generation for dependency tracking
+2. **Security Scan**: Trivy vulnerability detection with HIGH/CRITICAL blocking
+3. **Secret Detection**: Gitleaks scan with zero-tolerance policy
+4. **Artifact Storage**: All security reports archived for 90 days
+5. **GitHub Security**: SARIF upload to GitHub Security tab
+
+### 📊 Security Artifacts
+
+All security scan results are stored as CI artifacts:
+
+```
+artifacts/security/
+├── sbom/
+│   ├── sbom.spdx.json      # SPDX format SBOM
+│   ├── sbom.cyclonedx.json # CycloneDX format SBOM  
+│   └── sbom.syft.json      # Syft native format SBOM
+├── trivy/
+│   ├── results.sarif       # SARIF format for GitHub Security
+│   ├── results.json        # Detailed JSON results
+│   └── summary.txt         # Human-readable summary
+└── gitleaks/
+    ├── results.sarif       # SARIF format for GitHub Security
+    ├── results.json        # Detailed JSON results  
+    └── summary.txt         # Human-readable summary
+```
+
+### 🚨 Security Policy
+
+- **Vulnerability Management**: HIGH/CRITICAL vulnerabilities block releases
+- **Secret Detection**: Any detected secrets immediately fail CI/CD
+- **Supply Chain**: SBOM generated and archived for all releases
+- **Reporting**: Security findings automatically uploaded to GitHub Security tab
+- **Retention**: Security artifacts retained for 90 days for audit purposes
+
+### 🔧 Security Configuration
+
+Security scanning is configured through dedicated configuration files:
+- **Trivy**: `security/trivy/trivy.yaml` - Vulnerability scanning settings
+- **Gitleaks**: `security/gitleaks/gitleaks.toml` - Secret detection patterns
+- **Syft**: `security/sbom/syft.yaml` - SBOM generation configuration
+
+These configurations are tuned specifically for Nova Bot's architecture and include:
+- Project-specific exclusions (logs, backups, artifacts)
+- Custom secret patterns for Nova-specific tokens
+- Comprehensive dependency cataloging across all tech stacks
+
+## �🚀 CI/CD Pipeline
 
 The GitHub Actions pipeline (`nova-ci.yml`) provides:
 
@@ -270,5 +565,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Nova Bot** - Autonomous PowerShell Framework  
-Built with ❤️ by Tyler McKendry & Nova
+<div align="center">
+
+**Nova Bot Framework** - Enterprise Autonomous PowerShell Platform
+
+[![GitHub](https://img.shields.io/github/stars/NovaIntelligence/Nova?style=social)](https://github.com/NovaIntelligence/Nova)
+[![PowerShell Gallery](https://img.shields.io/powershellgallery/dt/Nova?label=PowerShell%20Gallery)](https://www.powershellgallery.com/packages/Nova)
+[![Documentation](https://img.shields.io/badge/docs-comprehensive-brightgreen)](https://NovaIntelligence.github.io/Nova/)
+
+**Creators: Tyler McKendry & Nova**
+
+*Building the future of autonomous automation, one PowerShell script at a time.*
+
+</div>

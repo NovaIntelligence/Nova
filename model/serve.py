@@ -1,7 +1,5 @@
-﻿from fastapi.responses import JSONResponse
-from fastapi import Request
+﻿#!/usr/bin/env python3
 from __future__ import annotations
-#!/usr/bin/env python3
 """
 Nova Model Serving API
 FastAPI-based model serving with /score endpoint
@@ -20,7 +18,8 @@ import pandas as pd
 import numpy as np
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
+from pydantic import field_validator
 import uvicorn
 
 # ML Libraries

@@ -1,11 +1,11 @@
-﻿from __future__ import annotations
-from typing import Any, Dict, Optional, Tuple
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 Nova Model Training and Packaging Script
 Supports both LightGBM and XGBoost for training from parquet data
 Exports trained model and schema for serving
 """
+
+from __future__ import annotations
 
 import os
 import json
@@ -13,7 +13,7 @@ import pickle
 import argparse
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional, Tuple
 from datetime import datetime
 
 import pandas as pd
@@ -166,6 +166,10 @@ class NovaModelTrainer:
             X, y, test_size=0.2, random_state=self.random_state, 
             stratify=y if self.task_type == 'classification' else None
         )
+        X_train: pd.DataFrame
+        X_val: pd.DataFrame 
+        y_train: pd.Series
+        y_val: pd.Series
         X_train, X_val, y_train, y_val = split_result
         
         if self.model_type == "lightgbm":
@@ -209,7 +213,7 @@ class NovaModelTrainer:
             callbacks=[lgb.early_stopping(10), lgb.log_evaluation(0)]
         )
     
-    def _train_xgboost(self, X_train, y_train, X_val, y_val, **params):
+    def _train_xgboost(self, X_train: pd.DataFrame, y_train: pd.Series, X_val: pd.DataFrame, y_val: pd.Series, **params: Any) -> None:
         """Train XGBoost model"""
         default_params: Dict[str, Any] = {
             'objective': 'binary:logistic' if self.task_type == 'classification' else 'reg:squarederror',
@@ -237,7 +241,7 @@ class NovaModelTrainer:
             verbose_eval=False
         )
     
-    def _evaluate_model(self, X_val, y_val):
+    def _evaluate_model(self, X_val: pd.DataFrame, y_val: pd.Series) -> None:
         """Evaluate model performance"""
         logger.info("Evaluating model performance...")
         
