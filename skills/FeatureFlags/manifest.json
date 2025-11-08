@@ -1,0 +1,19 @@
+{
+    "version":  "1.0.1",
+    "name":  "FeatureFlags",
+    "permissions":  [
+                        "read:config",
+                        "write:config",
+                        "log:events"
+                    ],
+    "params":  [
+                   "Name",
+                   "Value",
+                   "Ratio",
+                   "Seed",
+                   "ForceCanary",
+                   "DryRun"
+               ],
+    "dry_run_default":  true,
+    "entry":  "FeatureFlags.ps1"
+}

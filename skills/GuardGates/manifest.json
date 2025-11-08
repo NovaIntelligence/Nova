@@ -1,0 +1,13 @@
+{
+    "version":  "1.0.0",
+    "name":  "GuardGates",
+    "permissions":  [
+                        "read:config",
+                        "log:events"
+                    ],
+    "params":  [
+                   "Now"
+               ],
+    "dry_run_default":  true,
+    "entry":  "GuardGates.ps1"
+}

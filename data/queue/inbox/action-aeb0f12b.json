@@ -1,0 +1,14 @@
+﻿{
+    "Id":  "aeb0f12b",
+    "Skill":  "system",
+    "Command":  "GetStatus",
+    "Parameters":  {
+
+                   },
+    "RequestedBy":  "tjrmc",
+    "Timestamp":  "\/Date(1762560576102)\/",
+    "Mode":  0,
+    "Status":  "approved",
+    "Reason":  "Testing approval workflow",
+    "Result":  null
+}

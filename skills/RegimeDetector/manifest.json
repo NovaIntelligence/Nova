@@ -1,0 +1,15 @@
+{
+    "version":  "1.0.1",
+    "name":  "RegimeDetector",
+    "permissions":  [
+                        "read:config",
+                        "log:events"
+                    ],
+    "params":  [
+                   "Series",
+                   "Window",
+                   "DryRun"
+               ],
+    "dry_run_default":  true,
+    "entry":  "RegimeDetector.ps1"
+}

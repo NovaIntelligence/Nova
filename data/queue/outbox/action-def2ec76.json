@@ -1,0 +1,14 @@
+﻿{
+    "Id":  "def2ec76",
+    "Skill":  "system",
+    "Command":  "GetStatus",
+    "Parameters":  {
+
+                   },
+    "RequestedBy":  "tjrmc",
+    "Timestamp":  "\/Date(1762560342031)\/",
+    "Mode":  1,
+    "Status":  "denied",
+    "Reason":  "Testing denial workflow",
+    "Result":  null
+}

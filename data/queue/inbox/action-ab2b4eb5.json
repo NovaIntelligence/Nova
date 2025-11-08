@@ -1,0 +1,15 @@
+﻿{
+    "Id":  "ab2b4eb5",
+    "Skill":  "filesystem",
+    "Command":  "CreateFile",
+    "Parameters":  {
+                       "Content":  "Hello World",
+                       "Path":  "D:\\Nova\\data\\test.txt"
+                   },
+    "RequestedBy":  "tjrmc",
+    "Timestamp":  "\/Date(1762560341934)\/",
+    "Mode":  0,
+    "Status":  "pending",
+    "Reason":  null,
+    "Result":  null
+}

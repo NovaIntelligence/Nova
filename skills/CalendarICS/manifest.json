@@ -1,0 +1,18 @@
+{
+    "version":  "1.0.1",
+    "name":  "CalendarICS",
+    "permissions":  [
+                        "write:files",
+                        "log:events"
+                    ],
+    "params":  [
+                   "DurationMinutes",
+                   "Prefix",
+                   "When",
+                   "Slots",
+                   "Timezone",
+                   "DryRun"
+               ],
+    "dry_run_default":  true,
+    "entry":  "CalendarICS.ps1"
+}

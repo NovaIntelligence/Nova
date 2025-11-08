@@ -1,0 +1,14 @@
+﻿{
+    "Id":  "d6f969bb",
+    "Skill":  "system",
+    "Command":  "GetProcesses",
+    "Parameters":  {
+                       "NameFilter":  "powershell"
+                   },
+    "RequestedBy":  "tjrmc",
+    "Timestamp":  "\/Date(1762560603723)\/",
+    "Mode":  1,
+    "Status":  "pending",
+    "Reason":  null,
+    "Result":  null
+}
