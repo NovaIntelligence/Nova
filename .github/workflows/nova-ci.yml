@@ -40,11 +40,11 @@ jobs:
         New-Item -Path "ci-artifacts/coverage" -ItemType Directory -Force
         
     - name: Run Preflight Checks
-      shell: powershell
+      shell: pwsh
       run: |
         Write-Host "=== Nova Bot Preflight Checks ===" -ForegroundColor Cyan
         if (Test-Path "tools\Preflight.ps1") {
-          powershell -ExecutionPolicy Bypass -File "tools\Preflight.ps1"
+          & "tools\Preflight.ps1"
           if ($LASTEXITCODE -ne 0) {
             Write-Error "Preflight checks failed with exit code: $LASTEXITCODE"
             exit $LASTEXITCODE
@@ -64,7 +64,7 @@ jobs:
         # Check if custom test runner exists, otherwise use direct Pester
         if (Test-Path "tools\Run-Tests.ps1") {
           Write-Host "Running custom test suite via tools\Run-Tests.ps1"
-          pwsh -ExecutionPolicy Bypass -File "tools\Run-Tests.ps1"
+          & "tools\Run-Tests.ps1"
           $exitCode = $LASTEXITCODE
         } elseif (Test-Path "tests\FailureInjection.Tests.ps1") {
           Write-Host "Running tests directly with Pester v5"
