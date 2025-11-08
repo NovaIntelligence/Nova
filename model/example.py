@@ -1,6 +1,5 @@
-﻿from __future__ import annotations
-from typing import Any, Dict, List, Optional, Sequence, Mapping, Set, Tuple, Union, cast
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
+from __future__ import annotations
 """
 Example usage of Nova Model Training and Serving Pipeline
 This script demonstrates how to:

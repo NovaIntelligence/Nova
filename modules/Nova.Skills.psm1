@@ -3,19 +3,22 @@
 # 
 # Provides a secure action queue system with approval workflows
 
-# Import logging
+# Import Nova.Common for shared utilities
+$CommonModulePath = Join-Path $PSScriptRoot "Nova.Common\Nova.Common.psm1"
+if (Test-Path $CommonModulePath) {
+    Import-Module $CommonModulePath -Force
+} else {
+    # Fallback: try to find Nova.Common in modules directory
+    $FallbackPath = Join-Path (Split-Path $PSScriptRoot -Parent) "modules\Nova.Common\Nova.Common.psm1"
+    if (Test-Path $FallbackPath) {
+        Import-Module $FallbackPath -Force
+    }
+}
+
+# Import legacy logging for backward compatibility
 $LogShimPath = Join-Path (Split-Path $PSScriptRoot -Parent) "tools\_nova_logshim.psm1"
 if (Test-Path $LogShimPath) {
     Import-Module $LogShimPath -Force
-}
-
-function Write-Log {
-    param([string]$Message, [string]$Level = "INFO")
-    if (Get-Command "Write-NovaLog" -ErrorAction SilentlyContinue) {
-        Write-NovaLog -Message $Message -Level $Level -Component "Nova.Skills"
-    } else {
-        Write-Host "[$Level] $(Get-Date -Format 'HH:mm:ss') Nova.Skills: $Message"
-    }
 }
 
 # Action execution modes
@@ -78,32 +81,30 @@ function Submit-Action {
         [ActionMode]$Mode = [ActionMode]::DryRun
     )
     
-    Write-Log "Submitting action: $Skill.$Command (Mode: $Mode)"
+    Write-NovaLog -Level "Info" -Message "Submitting action: $Skill.$Command (Mode: $Mode)" -Component "Nova.Skills"
     
     # Create action object
     $action = [NovaAction]::new($Skill, $Command, $Parameters, $Mode)
     
-    # Determine queue path
+    # Determine queue path using Nova.Common
     $queuePath = switch ($Mode) {
-        "DryRun" { "D:\Nova\data\queue\inbox" }
-        "RequireApproval" { "D:\Nova\data\queue\inbox" }
-        "Execute" { "D:\Nova\data\queue\inbox" }
+        "DryRun" { Get-NovaModulePath -Type "Data" | Join-Path -ChildPath "queue\inbox" }
+        "RequireApproval" { Get-NovaModulePath -Type "Data" | Join-Path -ChildPath "queue\inbox" }
+        "Execute" { Get-NovaModulePath -Type "Data" | Join-Path -ChildPath "queue\inbox" }
     }
     
-    # Ensure queue directory exists
-    if (-not (Test-Path $queuePath)) {
-        New-Item -Path $queuePath -ItemType Directory -Force | Out-Null
-    }
+    # Ensure queue directory exists using Nova.Common
+    Confirm-DirectoryPath -Path $queuePath
     
     # Write action to queue
     $actionFile = Join-Path $queuePath "action-$($action.Id).json"
     $action | ConvertTo-Json -Depth 10 | Set-Content $actionFile -Encoding UTF8
     
-    Write-Log "Action $($action.Id) submitted to queue: $actionFile"
+    Write-NovaLog -Level "Info" -Message "Action $($action.Id) submitted to queue: $actionFile" -Component "Nova.Skills"
     
     # Auto-process if Execute mode
     if ($Mode -eq [ActionMode]::Execute) {
-        Write-Log "Auto-processing Execute mode action"
+        Write-NovaLog -Level "Info" -Message "Auto-processing Execute mode action" -Component "Nova.Skills"
         Process-Action -ActionId $action.Id
     }
     
@@ -126,18 +127,14 @@ function Invoke-Action {
         [switch]$ProcessAll
     )
     
-    $inboxPath = "D:\Nova\data\queue\inbox"
-    $outboxPath = "D:\Nova\data\queue\outbox"
+    # Base paths using Nova.Common
+    $dataPath = Get-NovaModulePath -Type "Data"
+    $inboxPath = Join-Path $dataPath "queue\inbox"
+    $outboxPath = Join-Path $dataPath "queue\outbox"
     
-    if (-not (Test-Path $inboxPath)) {
-        Write-Log "Inbox path not found: $inboxPath" -Level "ERROR"
-        return
-    }
-    
-    # Ensure outbox exists
-    if (-not (Test-Path $outboxPath)) {
-        New-Item -Path $outboxPath -ItemType Directory -Force | Out-Null
-    }
+    # Ensure directories exist using Nova.Common
+    Confirm-DirectoryPath -Path $inboxPath
+    Confirm-DirectoryPath -Path $outboxPath
     
     # Get actions to process
     $actions = @()
@@ -146,13 +143,13 @@ function Invoke-Action {
         if (Test-Path $actionFile) {
             $actions += $actionFile
         } else {
-            Write-Log "Action $ActionId not found in inbox" -Level "ERROR"
+            Write-NovaLog -Level "Error" -Message "Action $ActionId not found in inbox" -Component "Nova.Skills"
             return
         }
     } elseif ($ProcessAll) {
         $actions = Get-ChildItem "$inboxPath\action-*.json" -ErrorAction SilentlyContinue
     } else {
-        Write-Log "Must specify ActionId or ProcessAll" -Level "ERROR"
+        Write-NovaLog -Level "Error" -Message "Must specify ActionId or ProcessAll" -Component "Nova.Skills"
         return
     }
     
@@ -184,11 +181,11 @@ function Invoke-Action {
             $action.Status = $actionJson.Status
             $action.Reason = $actionJson.Reason
             
-            Write-Log "Processing action $($action.Id): $($action.Skill).$($action.Command)"
+            Write-NovaLog -Level "Info" -Message "Processing action $($action.Id): $($action.Skill).$($action.Command)" -Component "Nova.Skills"
             
             # Check if action requires approval
             if ($action.Mode -eq [ActionMode]::RequireApproval -and $action.Status -eq "pending") {
-                Write-Log "Action $($action.Id) requires approval - skipping auto-processing"
+                Write-NovaLog -Level "Info" -Message "Action $($action.Id) requires approval - skipping auto-processing" -Component "Nova.Skills"
                 continue
             }
             
@@ -206,10 +203,10 @@ function Invoke-Action {
             # Remove from inbox
             Remove-Item $actionFile.FullName -Force
             
-            Write-Log "Action $($action.Id) processed: $($action.Status)"
+            Write-NovaLog -Level "Info" -Message "Action $($action.Id) processed: $($action.Status)" -Component "Nova.Skills"
             
         } catch {
-            Write-Log "Failed to process action $($actionFile.Name): $_" -Level "ERROR"
+            Write-NovaLog -Level "Error" -Message "Failed to process action $($actionFile.Name): $_" -Component "Nova.Skills"
         }
     }
 }
@@ -217,12 +214,12 @@ function Invoke-Action {
 function Invoke-SkillAction {
     param([NovaAction]$Action)
     
-    $skillsPath = "D:\Nova\skills"
+    $skillsPath = Get-NovaModulePath -Type "Root" | Join-Path -ChildPath "skills"
     $skillPath = Join-Path $skillsPath $Action.Skill
     
     # Check if skill exists
     if (-not (Test-Path $skillPath)) {
-        Write-Log "Skill not found: $($Action.Skill)" -Level "ERROR"
+        Write-NovaLog -Level "Error" -Message "Skill not found: $($Action.Skill)" -Component "Nova.Skills"
         return @{ Success = $false; Message = "Skill '$($Action.Skill)' not found" }
     }
     
@@ -230,12 +227,12 @@ function Invoke-SkillAction {
     $skillScript = Get-ChildItem "$skillPath\*.ps1" | Where-Object { $_.BaseName -eq $Action.Skill -or $_.BaseName -eq "main" } | Select-Object -First 1
     
     if (-not $skillScript) {
-        Write-Log "No skill script found in $skillPath" -Level "ERROR"
+        Write-NovaLog -Level "Error" -Message "No skill script found in $skillPath" -Component "Nova.Skills"
         return @{ Success = $false; Message = "No executable script found for skill '$($Action.Skill)'" }
     }
     
     try {
-        Write-Log "Loading skill script: $($skillScript.FullName)"
+        Write-NovaLog -Level "Info" -Message "Loading skill script: $($skillScript.FullName)" -Component "Nova.Skills"
         
         # Load the skill script
         . $skillScript.FullName
@@ -252,12 +249,12 @@ function Invoke-SkillAction {
             Mode = $Action.Mode.ToString()
         }
         
-        Write-Log "Invoking skill with command: $($Action.Command)"
-        Write-Log "Parameters: $($Action.Parameters | ConvertTo-Json -Compress)" -Level "DEBUG"
+        Write-NovaLog -Level "Info" -Message "Invoking skill with command: $($Action.Command)" -Component "Nova.Skills"
+        Write-NovaLog -Level "Debug" -Message "Parameters: $($Action.Parameters | ConvertTo-Json -Compress)" -Component "Nova.Skills"
         
         # Execute skill
         if ($Action.Mode -eq [ActionMode]::DryRun) {
-            Write-Log "DRY RUN - Would execute: $($Action.Skill).$($Action.Command)"
+            Write-NovaLog -Level "Info" -Message "DRY RUN - Would execute: $($Action.Skill).$($Action.Command)" -Component "Nova.Skills"
             $result = Invoke-Skill @invokeParams -WhatIf
         } else {
             $result = Invoke-Skill @invokeParams
@@ -270,7 +267,7 @@ function Invoke-SkillAction {
         }
         
     } catch {
-        Write-Log "Skill execution failed: $_" -Level "ERROR"
+        Write-NovaLog -Level "Error" -Message "Skill execution failed: $_" -Component "Nova.Skills"
         return @{ 
             Success = $false
             Message = "Skill execution failed: $_"
@@ -284,8 +281,9 @@ function Get-QueueStatus {
     Gets the current status of action queues
     #>
     
-    $inboxPath = "D:\Nova\data\queue\inbox"
-    $outboxPath = "D:\Nova\data\queue\outbox"
+    $dataPath = Get-NovaModulePath -Type "Data"
+    $inboxPath = Join-Path $dataPath "queue\inbox"
+    $outboxPath = Join-Path $dataPath "queue\outbox"
     
     $inbox = @()
     $outbox = @()
@@ -295,7 +293,7 @@ function Get-QueueStatus {
             try {
                 Get-Content $_.FullName -Raw | ConvertFrom-Json
             } catch {
-                Write-Log "Failed to parse action file: $($_.Name)" -Level "WARN"
+                Write-NovaLog -Level "Warning" -Message "Failed to parse action file: $($_.Name)" -Component "Nova.Skills"
             }
         }
     }
@@ -305,7 +303,7 @@ function Get-QueueStatus {
             try {
                 Get-Content $_.FullName -Raw | ConvertFrom-Json
             } catch {
-                Write-Log "Failed to parse action file: $($_.Name)" -Level "WARN"
+                Write-NovaLog -Level "Warning" -Message "Failed to parse action file: $($_.Name)" -Component "Nova.Skills"
             }
         }
     }
@@ -337,11 +335,12 @@ function Approve-Action {
         [string]$Reason = "Approved by $env:USERNAME"
     )
     
-    $inboxPath = "D:\Nova\data\queue\inbox"
+    $dataPath = Get-NovaModulePath -Type "Data"
+    $inboxPath = Join-Path $dataPath "queue\inbox"
     $actionFile = Join-Path $inboxPath "action-$ActionId.json"
     
     if (-not (Test-Path $actionFile)) {
-        Write-Log "Action $ActionId not found" -Level "ERROR"
+        Write-NovaLog -Level "Error" -Message "Action $ActionId not found" -Component "Nova.Skills"
         return $false
     }
     
@@ -352,7 +351,7 @@ function Approve-Action {
         
         $actionJson | ConvertTo-Json -Depth 10 | Set-Content $actionFile -Encoding UTF8
         
-        Write-Log "Action $ActionId approved: $Reason"
+        Write-NovaLog -Level "Info" -Message "Action $ActionId approved: $Reason" -Component "Nova.Skills"
         
         # Auto-process approved action
         Process-Action -ActionId $ActionId
@@ -360,7 +359,7 @@ function Approve-Action {
         return $true
         
     } catch {
-        Write-Log "Failed to approve action $ActionId`: $($_.Exception.Message)" -Level "ERROR"
+        Write-NovaLog -Level "Error" -Message "Failed to approve action $ActionId`: $($_.Exception.Message)" -Component "Nova.Skills"
         return $false
     }
 }
@@ -384,12 +383,13 @@ function Deny-Action {
         [string]$Reason
     )
     
-    $inboxPath = "D:\Nova\data\queue\inbox"
-    $outboxPath = "D:\Nova\data\queue\outbox"
+    $dataPath = Get-NovaModulePath -Type "Data"
+    $inboxPath = Join-Path $dataPath "queue\inbox"
+    $outboxPath = Join-Path $dataPath "queue\outbox"
     $actionFile = Join-Path $inboxPath "action-$ActionId.json"
     
     if (-not (Test-Path $actionFile)) {
-        Write-Log "Action $ActionId not found" -Level "ERROR"
+        Write-NovaLog -Level "Error" -Message "Action $ActionId not found" -Component "Nova.Skills"
         return $false
     }
     
@@ -399,9 +399,7 @@ function Deny-Action {
         $actionJson.Reason = $Reason
         
         # Move to outbox
-        if (-not (Test-Path $outboxPath)) {
-            New-Item -Path $outboxPath -ItemType Directory -Force | Out-Null
-        }
+        Confirm-DirectoryPath -Path $outboxPath
         
         $outboxFile = Join-Path $outboxPath "action-$ActionId.json"
         $actionJson | ConvertTo-Json -Depth 10 | Set-Content $outboxFile -Encoding UTF8
@@ -409,11 +407,11 @@ function Deny-Action {
         # Remove from inbox
         Remove-Item $actionFile -Force
         
-        Write-Log "Action $ActionId denied: $Reason"
+        Write-NovaLog -Level "Info" -Message "Action $ActionId denied: $Reason" -Component "Nova.Skills"
         return $true
         
     } catch {
-        Write-Log "Failed to deny action $ActionId`: $($_.Exception.Message)" -Level "ERROR"
+        Write-NovaLog -Level "Error" -Message "Failed to deny action $ActionId`: $($_.Exception.Message)" -Component "Nova.Skills"
         return $false
     }
 }

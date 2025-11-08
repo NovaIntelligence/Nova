@@ -1,6 +1,5 @@
 ﻿from __future__ import annotations
-from typing import Any, Dict, List, Optional, Sequence, Mapping, Set, Tuple, Union, cast
-import numpy as np
+from typing import Any, Dict, Optional, Tuple
 #!/usr/bin/env python3
 """
 Nova Model Training and Packaging Script
@@ -66,9 +65,9 @@ class NovaModelTrainer:
         self.schema: Dict[str, Any] = {}
         
         # Validate model availability
-        if self.model_type == "lightgbm" and not _lightgbm_available:
+        if self.model_type == "lightgbm" and not __lightgbm_available:
             raise ImportError("LightGBM not available. Install with: pip install lightgbm")
-        elif self.model_type == "xgboost" and not _xgboost_available:
+        elif self.model_type == "xgboost" and not __xgboost_available:
             raise ImportError("XGBoost not available. Install with: pip install xgboost")
         elif self.model_type not in ["lightgbm", "xgboost"]:
             raise ValueError(f"Unsupported model type: {self.model_type}")
@@ -167,6 +166,7 @@ class NovaModelTrainer:
             X, y, test_size=0.2, random_state=self.random_state, 
             stratify=y if self.task_type == 'classification' else None
         )
+        X_train, X_val, y_train, y_val = split_result
         
         if self.model_type == "lightgbm":
             self._train_lightgbm(X_train, y_train, X_val, y_val, **model_params)
@@ -193,16 +193,15 @@ class NovaModelTrainer:
         default_params.update(params)
         
         # Create datasets
-        train_data = lgb.Dataset(  # type: ignore[attr-defined]X_train, label=y_train)
-        val_data = lgb.Dataset(  # type: ignore[attr-defined]X_val, label=y_val, reference=train_data)
-        
-        # Train model
-                # Create LightGBM datasets
         train_data = lgb.Dataset(X_train, label=y_train)  # type: ignore[attr-defined]
         val_data = lgb.Dataset(X_val, label=y_val, reference=train_data)  # type: ignore[attr-defined]
         
         # Train model
-        self.model = lgb.train(  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+        train_data = lgb.Dataset(X_train, label=y_train)  # type: ignore[attr-defined]
+        val_data = lgb.Dataset(X_val, label=y_val, reference=train_data)  # type: ignore[attr-defined]
+        
+        # Train model
+        self.model = lgb.train(  # type: ignore[attr-defined]
             default_params,
             train_data,
             valid_sets=[val_data],
@@ -225,8 +224,8 @@ class NovaModelTrainer:
         default_params.update(params)
         
         # Create DMatrix
-        dtrain = xgb.DMatrix(  # type: ignore[attr-defined]X_train, label=y_train)
-        dval = xgb.DMatrix(  # type: ignore[attr-defined]X_val, label=y_val)
+        dtrain = xgb.DMatrix(X_train, label=y_train)  # type: ignore[attr-defined]
+        dval = xgb.DMatrix(X_val, label=y_val)  # type: ignore[attr-defined]
         
         # Train model
         self.model = xgb.train(  # type: ignore[attr-defined]
@@ -244,10 +243,10 @@ class NovaModelTrainer:
         
         # Make predictions
         if self.model_type == "lightgbm":
-            y_pred: Any = self.model.predict(  # type: ignore[union-attr]X_val)
+            y_pred: Any = self.model.predict(X_val)  # type: ignore[union-attr]
         else:  # xgboost
-            dval = xgb.DMatrix(  # type: ignore[attr-defined]X_val)
-            y_pred: Any = self.model.predict(  # type: ignore[union-attr]dval)
+            dval = xgb.DMatrix(X_val)  # type: ignore[attr-defined]
+            y_pred: Any = self.model.predict(dval)  # type: ignore[union-attr]
         
         if self.task_type == 'classification':
             # Convert probabilities to predictions

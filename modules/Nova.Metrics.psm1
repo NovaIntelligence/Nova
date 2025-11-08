@@ -1,7 +1,19 @@
 # Nova.Metrics.psm1 - Lightweight metrics collection for Nova Bot
 # Provides counters, histograms, and gauges with daily rotation and Prometheus export
 
-# Import logging
+# Import Nova.Common for shared utilities
+$CommonModulePath = Join-Path (Split-Path $PSScriptRoot -Parent) "Nova.Common\Nova.Common.psm1"
+if (Test-Path $CommonModulePath) {
+    Import-Module $CommonModulePath -Force
+} else {
+    # Fallback: try to find Nova.Common in same directory
+    $FallbackPath = Join-Path $PSScriptRoot "Nova.Common\Nova.Common.psm1"
+    if (Test-Path $FallbackPath) {
+        Import-Module $FallbackPath -Force
+    }
+}
+
+# Import legacy logging for backward compatibility
 if (Test-Path "$PSScriptRoot\..\bot\tools\_nova_logshim.psm1") {
     Import-Module "$PSScriptRoot\..\bot\tools\_nova_logshim.psm1" -Force
 } elseif (Test-Path "$PSScriptRoot\..\tools\_nova_logshim.psm1") {
@@ -16,25 +28,17 @@ $script:MetricsData = @{
     LastRotation = (Get-Date).Date
 }
 
-$script:MetricsPath = "D:\Nova\bot\data\metrics"
+# Initialize metrics path using Nova.Common
+$script:MetricsPath = Get-NovaModulePath -Type "Data" -ModuleName "metrics"
 
-# Ensure metrics directory exists
-if (-not (Test-Path $script:MetricsPath)) {
-    New-Item -ItemType Directory -Path $script:MetricsPath -Force | Out-Null
-}
-
-function Write-Log {
-    param([string]$Message, [string]$Level = "INFO")
-    if (Get-Command "Write-NovaLog" -ErrorAction SilentlyContinue) {
-        Write-NovaLog -Message $Message -Level $Level -Component "Nova.Metrics"
-    } else {
-        Write-Host "[$Level] $(Get-Date -Format 'HH:mm:ss') Nova.Metrics: $Message"
-    }
-}
+# Ensure metrics directory exists using Nova.Common
+Confirm-DirectoryPath -Path $script:MetricsPath
 
 function Get-MetricsFileName {
     param([DateTime]$Date = (Get-Date))
-    return Join-Path $script:MetricsPath "metrics_$($Date.ToString('yyyyMMdd')).jsonl"
+    $dateString = Convert-NovaDateTime -DateTime $Date -Format "Timestamp"
+    $dateOnly = $dateString.Split('_')[0]  # Get just the date part (yyyyMMdd)
+    return Join-Path $script:MetricsPath "metrics_$dateOnly.jsonl"
 }
 
 function Save-MetricsEntry {
@@ -46,7 +50,7 @@ function Save-MetricsEntry {
     )
     
     $entry = @{
-        timestamp = (Get-Date).ToUniversalTime().ToString('o')
+        timestamp = Convert-NovaDateTime -DateTime (Get-Date) -Format "ISO"
         type = $Type
         name = $Name
         value = $Value
@@ -57,7 +61,7 @@ function Save-MetricsEntry {
     try {
         Add-Content -Path $filename -Value $entry -Encoding UTF8
     } catch {
-        Write-Log "Failed to save metrics entry: $_" -Level "ERROR"
+        Write-NovaLog -Level "Error" -Message "Failed to save metrics entry: $_" -Component "Nova.Metrics"
     }
 }
 
@@ -68,7 +72,7 @@ function Test-RotationNeeded {
 
 function Invoke-MetricsRotation {
     if (Test-RotationNeeded) {
-        Write-Log "Performing daily metrics rotation"
+        Write-NovaLog -Level "Info" -Message "Performing daily metrics rotation" -Component "Nova.Metrics"
         
         # Save current state before rotation
         $snapshot = Get-MetricsSnapshot -Raw
@@ -79,7 +83,7 @@ function Invoke-MetricsRotation {
         $script:MetricsData.Histograms = @{}
         $script:MetricsData.LastRotation = (Get-Date).Date
         
-        Write-Log "Metrics rotation completed"
+        Write-NovaLog -Level "Info" -Message "Metrics rotation completed" -Component "Nova.Metrics"
     }
 }
 
@@ -121,7 +125,7 @@ function Inc-Counter {
     $script:MetricsData.Counters[$key].Value += $Value
     Save-MetricsEntry -Type "counter" -Name $Name -Value $Value -Labels $Labels
     
-    Write-Log "Counter '$Name' incremented by $Value (total: $($script:MetricsData.Counters[$key].Value))"
+    Write-NovaLog -Level "Debug" -Message "Counter '$Name' incremented by $Value (total: $($script:MetricsData.Counters[$key].Value))" -Component "Nova.Metrics"
 }
 
 function Observe-Histogram {
@@ -177,7 +181,7 @@ function Observe-Histogram {
     
     Save-MetricsEntry -Type "histogram" -Name $Name -Value $Value -Labels $Labels
     
-    Write-Log "Histogram '$Name' observed value $Value (count: $($hist.Count), sum: $($hist.Sum))"
+    Write-NovaLog -Level "Debug" -Message "Histogram '$Name' observed value $Value (count: $($hist.Count), sum: $($hist.Sum))" -Component "Nova.Metrics"
 }
 
 function Set-Gauge {
@@ -220,7 +224,7 @@ function Set-Gauge {
     
     Save-MetricsEntry -Type "gauge" -Name $Name -Value $Value -Labels $Labels
     
-    Write-Log "Gauge '$Name' set to $Value"
+    Write-NovaLog -Level "Debug" -Message "Gauge '$Name' set to $Value" -Component "Nova.Metrics"
 }
 
 function Get-MetricsSnapshot {
@@ -242,7 +246,7 @@ function Get-MetricsSnapshot {
     Invoke-MetricsRotation
     
     $snapshot = @{
-        Timestamp = (Get-Date).ToUniversalTime().ToString('o')
+        Timestamp = Convert-NovaDateTime -DateTime (Get-Date) -Format "ISO"
         Counters = @{}
         Histograms = @{}
         Gauges = @{}
@@ -349,7 +353,7 @@ function ConvertTo-PrometheusFormat {
 Inc-Counter -Name "restarts" -Value 0
 Set-Gauge -Name "uptime_seconds" -Value 0
 
-Write-Log "Nova.Metrics module loaded successfully"
+Write-NovaLog -Level "Info" -Message "Nova.Metrics module loaded successfully" -Component "Nova.Metrics"
 
 # Export functions
 Export-ModuleMember -Function Inc-Counter, Observe-Histogram, Set-Gauge, Get-MetricsSnapshot
