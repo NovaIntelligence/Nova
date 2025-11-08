@@ -1,9 +1,11 @@
 # Nova Bot
 
-![CI Status](https://github.com/YOUR_USERNAME/Nova/workflows/Nova%20Bot%20CI/CD%20Pipeline/badge.svg)
-[![Test Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://github.com/YOUR_USERNAME/Nova/actions)
+![CI Status](https://github.com/NovaIntelligence/Nova/workflows/Nova%20Bot%20CI%2FCD%20Pipeline/badge.svg)
+[![Test Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://github.com/NovaIntelligence/Nova/actions)
 [![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue.svg)](https://github.com/PowerShell/PowerShell)
 [![Pester](https://img.shields.io/badge/Pester-v5.7-green.svg)](https://pester.dev/)
+
+
 
 A comprehensive PowerShell-based autonomous bot framework with advanced metrics collection, sandboxed action execution, and robust failure handling capabilities.
 

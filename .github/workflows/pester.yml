@@ -1,0 +1,45 @@
+name: Pester Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup PowerShell
+      uses: microsoft/setup-powershell@v1
+      
+    - name: Set Nova Environment
+      run: |
+        $env:NOVA_ENV = "dev"
+        echo "NOVA_ENV=dev" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      shell: pwsh
+      
+    - name: Import Pester 5
+      run: pwsh -File tools/Import-Pester5.ps1
+      shell: pwsh
+      
+    - name: Run Preflight Checks
+      run: pwsh -File tools/Preflight.ps1
+      shell: pwsh
+      
+    - name: Run Pester Tests
+      run: pwsh -File tests/Run-Tests.ps1
+      shell: pwsh
+      
+    - name: Upload logs on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-logs
+        path: logs/**
+        retention-days: 30

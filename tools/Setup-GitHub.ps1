@@ -73,15 +73,7 @@ if ($InitialPush) {
             # Add essential CI/CD files
             git add .github/ modules/ tools/ tests/ README.md .gitignore GITHUB-SETUP.md
             
-            git commit -m "Initial Nova Bot framework with CI/CD pipeline
-
-Features:
-- Complete GitHub Actions CI/CD pipeline with PowerShell 7 + Pester v5
-- Comprehensive test suite with 100% pass rate
-- Preflight validation and security scanning
-- Metrics collection and skills management system
-- Interactive dashboard and action approval workflows
-- Comprehensive documentation and setup guides"
+            git commit -m "Initial Nova Bot framework with CI/CD pipeline - Complete GitHub Actions pipeline with PowerShell 7 + Pester v5, comprehensive test suite, preflight validation, metrics collection, skills management, interactive dashboard, and setup guides"
             
             Write-Host "🚀 Pushing to GitHub..." -ForegroundColor Yellow
             git push -u origin master
