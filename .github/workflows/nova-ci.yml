@@ -19,16 +19,10 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Setup PowerShell 7
-      uses: azure/powershell@v2
-      with:
-        azPSVersion: "latest"
-        inlineScript: |
-          # Install PowerShell 7 if not present
-          if (-not (Get-Command pwsh -ErrorAction SilentlyContinue)) {
-            Write-Host "Installing PowerShell 7..."
-            Invoke-WebRequest -Uri "https://github.com/PowerShell/PowerShell/releases/latest/download/PowerShell-7.4.6-win-x64.msi" -OutFile "pwsh.msi"
-            Start-Process msiexec.exe -ArgumentList "/i", "pwsh.msi", "/quiet" -Wait
-          }
+      shell: pwsh
+      run: |
+        Write-Host "PowerShell version: $($PSVersionTable.PSVersion)"
+        Write-Host "PowerShell executable: $($PSVersionTable.PSEdition)"
           
     - name: Install Pester v5
       shell: pwsh
@@ -46,11 +40,12 @@ jobs:
         New-Item -Path "ci-artifacts/coverage" -ItemType Directory -Force
         
     - name: Run Preflight Checks
-      shell: powershell -Version 5.1 -Command
+      shell: pwsh
       run: |
         Write-Host "=== Nova Bot Preflight Checks ===" -ForegroundColor Cyan
         if (Test-Path "tools\Preflight.ps1") {
-          powershell -ExecutionPolicy Bypass -Version 5.1 -File "tools\Preflight.ps1"
+          Write-Host "Running Preflight checks..." -ForegroundColor Yellow
+          powershell -ExecutionPolicy Bypass -File "tools\Preflight.ps1"
           if ($LASTEXITCODE -ne 0) {
             Write-Error "Preflight checks failed with exit code: $LASTEXITCODE"
             exit $LASTEXITCODE
