@@ -1,0 +1,132 @@
+# Nova Bot .gitignore
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+logs/*
+!logs/.gitkeep
+
+# PowerShell specific
+*.ps1xml
+$RECYCLE.BIN/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.pyc
+requirements.txt.backup
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDE and editor files
+.vscode/settings.json
+.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Credentials and secrets
+secrets/*
+creds/*
+*.key
+*.pem
+*.p12
+*.pfx
+config/*.json
+!config/example.json
+!config/schema.json
+
+# Data directories (keep structure, ignore contents)
+data/*
+!data/.gitkeep
+!data/queue/
+data/queue/*
+!data/queue/.gitkeep
+!data/queue/inbox/
+!data/queue/outbox/
+data/queue/inbox/*
+data/queue/outbox/*
+!data/queue/inbox/.gitkeep
+!data/queue/outbox/.gitkeep
+
+# Backup and archive directories
+backups/*
+Archive/*
+*_archive/
+*.backup
+*.bak
+*.v*.bak
+
+# Large model files and databases
+*.model
+*.pkl
+*.db
+*.sqlite
+*.sqlite3
+
+# Generated documentation
+out/
+*.chm
+*.html.backup
+
+# Test results
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+test-results.xml
+
+# Temporary build artifacts
+obj/
+bin/
+
+# Nova specific ignores
+outbox/*
+inbox/*
+voice_sessions/*
+lessons/*
+!lessons/.gitkeep
+
+# Large project directories (optional - uncomment if too large)
+# nova-*/*
+# bots/*
+# trading/*
+# banking/*
+
+# Keep important empty directories
+!.gitkeep

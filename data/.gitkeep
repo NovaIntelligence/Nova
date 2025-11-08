@@ -1,0 +1,2 @@
+# This file ensures the data directory structure is preserved in git
+# The data directory is needed for Nova Bot runtime operations
