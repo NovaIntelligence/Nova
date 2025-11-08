@@ -1,0 +1,392 @@
+# Nova Quality Scorecard CI/CD Pipeline
+# Creators: Tyler McKendry & Nova
+
+name: Quality Scorecard
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    # Run daily at 6 AM UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+env:
+  POWERSHELL_TELEMETRY_OPTOUT: 1
+
+jobs:
+  quality-scorecard:
+    name: Quality Assessment
+    runs-on: windows-latest
+    
+    outputs:
+      overall-score: ${{ steps.scorecard.outputs.overall-score }}
+      grade: ${{ steps.scorecard.outputs.grade }}
+      security-score: ${{ steps.security.outputs.security-score }}
+      coverage-percentage: ${{ steps.coverage.outputs.coverage-percentage }}
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: Setup PowerShell 7
+      shell: pwsh
+      run: |
+        Write-Host "PowerShell version: $($PSVersionTable.PSVersion)"
+        Write-Host "PowerShell executable: $($PSVersionTable.PSEdition)"
+        
+    - name: Install Dependencies
+      shell: pwsh
+      run: |
+        Write-Host "Installing required PowerShell modules..."
+        Install-Module -Name Pester -MinimumVersion 5.0 -Force -SkipPublisherCheck -Scope CurrentUser
+        Import-Module Pester -Force
+        Get-Module Pester | Select-Object Name, Version
+        
+    - name: Create Artifact Directories
+      shell: pwsh
+      run: |
+        New-Item -Path "quality-artifacts" -ItemType Directory -Force
+        New-Item -Path "quality-artifacts/reports" -ItemType Directory -Force
+        New-Item -Path "quality-artifacts/badges" -ItemType Directory -Force
+        
+    - name: Run Security Audit
+      id: security
+      shell: pwsh
+      run: |
+        Write-Host "=== Security Audit ===" -ForegroundColor Cyan
+        
+        try {
+          $result = powershell -ExecutionPolicy Bypass -File "tools\Security-Audit.ps1" -OutputFormat JSON -Output "quality-artifacts\reports\security-audit.json" -Comprehensive
+          
+          # Parse security results
+          if (Test-Path "quality-artifacts\reports\security-audit.json") {
+            $securityData = Get-Content "quality-artifacts\reports\security-audit.json" | ConvertFrom-Json
+            $securityScore = $securityData.Summary.SecurityScore
+            $criticalIssues = $securityData.Summary.CriticalIssues
+            $totalIssues = $securityData.Summary.TotalIssues
+            
+            Write-Host "Security Score: $securityScore/100"
+            Write-Host "Critical Issues: $criticalIssues"
+            Write-Host "Total Issues: $totalIssues"
+            
+            # Set output for later steps
+            echo "security-score=$securityScore" >> $env:GITHUB_OUTPUT
+            echo "critical-issues=$criticalIssues" >> $env:GITHUB_OUTPUT
+            echo "total-security-issues=$totalIssues" >> $env:GITHUB_OUTPUT
+            
+            # Fail if critical security issues found
+            if ($criticalIssues -gt 0) {
+              Write-Error "Critical security issues found! Failing the build."
+              exit 1
+            }
+          } else {
+            Write-Warning "Security audit report not generated"
+            echo "security-score=0" >> $env:GITHUB_OUTPUT
+          }
+        } catch {
+          Write-Error "Security audit failed: $($_.Exception.Message)"
+          echo "security-score=0" >> $env:GITHUB_OUTPUT
+          exit 1
+        }
+        
+    - name: Run Coverage Analysis
+      id: coverage
+      shell: pwsh
+      run: |
+        Write-Host "=== Coverage Analysis ===" -ForegroundColor Cyan
+        
+        try {
+          powershell -ExecutionPolicy Bypass -File "tests\Coverage-Report.ps1" -RunTests -HTML -OutputPath "quality-artifacts\reports\coverage-report.html" -Verbose
+          
+          # Generate coverage badge data
+          $coverageData = powershell -ExecutionPolicy Bypass -File "tests\Coverage-Report.ps1" -OutputFormat JSON
+          
+          if ($coverageData) {
+            $coverage = ($coverageData | ConvertFrom-Json)
+            $coveragePercent = $coverage.Summary.FunctionCoverage
+            $testsPassed = $coverage.Summary.PassedTests
+            $testsTotal = $coverage.Summary.TestCases
+            
+            Write-Host "Function Coverage: $coveragePercent%"
+            Write-Host "Tests Passed: $testsPassed/$testsTotal"
+            
+            echo "coverage-percentage=$coveragePercent" >> $env:GITHUB_OUTPUT
+            echo "tests-passed=$testsPassed" >> $env:GITHUB_OUTPUT
+            echo "tests-total=$testsTotal" >> $env:GITHUB_OUTPUT
+          } else {
+            Write-Warning "Coverage analysis did not return data"
+            echo "coverage-percentage=0" >> $env:GITHUB_OUTPUT
+          }
+        } catch {
+          Write-Error "Coverage analysis failed: $($_.Exception.Message)"
+          echo "coverage-percentage=0" >> $env:GITHUB_OUTPUT
+        }
+        
+    - name: Run Quality Scorecard
+      id: scorecard
+      shell: pwsh
+      run: |
+        Write-Host "=== Quality Scorecard ===" -ForegroundColor Cyan
+        
+        try {
+          # Run scorecard and capture output
+          powershell -ExecutionPolicy Bypass -File "tools\Quality-Scorecard.ps1" -Detailed -OutputFormat JSON -OutputPath "quality-artifacts\reports\quality-scorecard.json" -Verbose
+          
+          # Generate HTML report
+          powershell -ExecutionPolicy Bypass -File "tools\Quality-Scorecard.ps1" -Detailed -OutputFormat HTML -OutputPath "quality-artifacts\reports\quality-scorecard.html"
+          
+          # Parse scorecard results
+          if (Test-Path "quality-artifacts\reports\quality-scorecard.json") {
+            $scorecardData = Get-Content "quality-artifacts\reports\quality-scorecard.json" | ConvertFrom-Json
+            $overallScore = $scorecardData.Summary.OverallScore
+            $grade = $scorecardData.Summary.Grade
+            $totalPoints = $scorecardData.Summary.TotalPoints
+            $maxPoints = $scorecardData.Summary.MaxPoints
+            
+            Write-Host "Overall Score: $overallScore/10.0 ($grade)"
+            Write-Host "Total Points: $totalPoints/$maxPoints"
+            
+            # Set outputs for badge generation
+            echo "overall-score=$overallScore" >> $env:GITHUB_OUTPUT
+            echo "grade=$grade" >> $env:GITHUB_OUTPUT
+            echo "total-points=$totalPoints" >> $env:GITHUB_OUTPUT
+            echo "max-points=$maxPoints" >> $env:GITHUB_OUTPUT
+            
+            # Generate dimension scores for badges
+            foreach ($dimension in $scorecardData.Dimensions.PSObject.Properties) {
+              $dimName = $dimension.Name -replace ' ', '-'
+              $dimScore = $dimension.Value.Score
+              $dimMax = $dimension.Value.MaxScore
+              $dimPercent = $dimension.Value.Percentage
+              
+              echo "$dimName-score=$dimScore" >> $env:GITHUB_OUTPUT
+              echo "$dimName-percentage=$dimPercent" >> $env:GITHUB_OUTPUT
+            }
+            
+            # Fail if score is too low
+            if ($overallScore -lt 6.0) {
+              Write-Error "Quality score too low: $overallScore/10.0. Minimum required: 6.0"
+              exit 1
+            }
+          } else {
+            Write-Error "Quality scorecard report not generated"
+            echo "overall-score=0" >> $env:GITHUB_OUTPUT
+            echo "grade=F" >> $env:GITHUB_OUTPUT
+            exit 1
+          }
+        } catch {
+          Write-Error "Quality scorecard failed: $($_.Exception.Message)"
+          echo "overall-score=0" >> $env:GITHUB_OUTPUT
+          echo "grade=F" >> $env:GITHUB_OUTPUT
+          exit 1
+        }
+        
+    - name: Generate Quality Badges
+      shell: pwsh
+      run: |
+        Write-Host "=== Generating Quality Badges ===" -ForegroundColor Cyan
+        
+        # Generate badge JSON files for shields.io
+        $badges = @{
+          "overall-quality" = @{
+            "schemaVersion" = 1
+            "label" = "Quality"
+            "message" = "${{ steps.scorecard.outputs.overall-score }}/10 (${{ steps.scorecard.outputs.grade }})"
+            "color" = if ([double]"${{ steps.scorecard.outputs.overall-score }}" -ge 8.0) { "brightgreen" } 
+                     elseif ([double]"${{ steps.scorecard.outputs.overall-score }}" -ge 7.0) { "green" }
+                     elseif ([double]"${{ steps.scorecard.outputs.overall-score }}" -ge 6.0) { "yellow" }
+                     else { "red" }
+          }
+          
+          "security-score" = @{
+            "schemaVersion" = 1
+            "label" = "Security"
+            "message" = "${{ steps.security.outputs.security-score }}/100"
+            "color" = if ([int]"${{ steps.security.outputs.security-score }}" -ge 90) { "brightgreen" }
+                     elseif ([int]"${{ steps.security.outputs.security-score }}" -ge 80) { "green" }
+                     elseif ([int]"${{ steps.security.outputs.security-score }}" -ge 70) { "yellow" }
+                     else { "red" }
+          }
+          
+          "coverage" = @{
+            "schemaVersion" = 1
+            "label" = "Coverage"
+            "message" = "${{ steps.coverage.outputs.coverage-percentage }}%"
+            "color" = if ([double]"${{ steps.coverage.outputs.coverage-percentage }}" -ge 80) { "brightgreen" }
+                     elseif ([double]"${{ steps.coverage.outputs.coverage-percentage }}" -ge 70) { "green" }
+                     elseif ([double]"${{ steps.coverage.outputs.coverage-percentage }}" -ge 60) { "yellow" }
+                     else { "red" }
+          }
+        }
+        
+        # Save badge files
+        foreach ($badgeName in $badges.Keys) {
+          $badgeJson = $badges[$badgeName] | ConvertTo-Json
+          Set-Content -Path "quality-artifacts\badges\$badgeName.json" -Value $badgeJson -Encoding UTF8
+          Write-Host "Generated badge: $badgeName.json"
+        }
+        
+    - name: Upload Quality Artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: quality-reports
+        path: quality-artifacts/
+        retention-days: 30
+        
+    - name: Comment PR with Quality Report
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          // Read scorecard results
+          let scorecardData = {};
+          try {
+            const scorecardJson = fs.readFileSync('quality-artifacts/reports/quality-scorecard.json', 'utf8');
+            scorecardData = JSON.parse(scorecardJson);
+          } catch (e) {
+            console.log('Could not read scorecard data');
+          }
+          
+          // Read security results
+          let securityData = {};
+          try {
+            const securityJson = fs.readFileSync('quality-artifacts/reports/security-audit.json', 'utf8');
+            securityData = JSON.parse(securityJson);
+          } catch (e) {
+            console.log('Could not read security data');
+          }
+          
+          const overallScore = '${{ steps.scorecard.outputs.overall-score }}';
+          const grade = '${{ steps.scorecard.outputs.grade }}';
+          const securityScore = '${{ steps.security.outputs.security-score }}';
+          const coverage = '${{ steps.coverage.outputs.coverage-percentage }}';
+          
+          const comment = `## 🏆 Quality Scorecard Report
+          
+          ### Overall Assessment
+          - **Quality Score:** ${overallScore}/10.0 (${grade})
+          - **Security Score:** ${securityScore}/100
+          - **Coverage:** ${coverage}%
+          
+          ### Dimension Breakdown
+          ${scorecardData.Dimensions ? Object.keys(scorecardData.Dimensions).map(dim => 
+            `- **${dim}:** ${scorecardData.Dimensions[dim].Score}/${scorecardData.Dimensions[dim].MaxScore} (${scorecardData.Dimensions[dim].Percentage}%)`
+          ).join('\n') : 'Data not available'}
+          
+          ### Security Issues
+          - **Critical:** ${{ steps.security.outputs.critical-issues }}
+          - **Total Issues:** ${{ steps.security.outputs.total-security-issues }}
+          
+          ### Test Results
+          - **Tests Passed:** ${{ steps.coverage.outputs.tests-passed }}/${{ steps.coverage.outputs.tests-total }}
+          
+          ---
+          📊 [View detailed reports in artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+  publish-badges:
+    name: Publish Quality Badges
+    runs-on: ubuntu-latest
+    needs: quality-scorecard
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: Download Quality Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: quality-reports
+        path: quality-artifacts/
+        
+    - name: Commit Quality Badges
+      run: |
+        # Create badges directory if it doesn't exist
+        mkdir -p .github/badges
+        
+        # Copy badge files
+        cp quality-artifacts/badges/*.json .github/badges/
+        
+        # Configure git
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        # Commit badge updates
+        git add .github/badges/
+        if git diff --staged --quiet; then
+          echo "No badge changes to commit"
+        else
+          git commit -m "chore: update quality badges [skip ci]"
+          git push
+        fi
+
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    needs: quality-scorecard
+    
+    steps:
+    - name: Quality Gate Check
+      run: |
+        echo "=== Quality Gate Assessment ==="
+        echo "Overall Score: ${{ needs.quality-scorecard.outputs.overall-score }}/10.0"
+        echo "Grade: ${{ needs.quality-scorecard.outputs.grade }}"
+        echo "Security Score: ${{ needs.quality-scorecard.outputs.security-score }}/100"
+        echo "Coverage: ${{ needs.quality-scorecard.outputs.coverage-percentage }}%"
+        
+        # Define quality gates
+        MIN_OVERALL_SCORE=6.0
+        MIN_SECURITY_SCORE=70
+        MIN_COVERAGE=50
+        
+        OVERALL_SCORE=${{ needs.quality-scorecard.outputs.overall-score }}
+        SECURITY_SCORE=${{ needs.quality-scorecard.outputs.security-score }}
+        COVERAGE=${{ needs.quality-scorecard.outputs.coverage-percentage }}
+        
+        GATE_PASSED=true
+        
+        # Check overall score
+        if (( $(echo "$OVERALL_SCORE < $MIN_OVERALL_SCORE" | bc -l) )); then
+          echo "❌ Overall quality score too low: $OVERALL_SCORE < $MIN_OVERALL_SCORE"
+          GATE_PASSED=false
+        else
+          echo "✅ Overall quality score acceptable: $OVERALL_SCORE >= $MIN_OVERALL_SCORE"
+        fi
+        
+        # Check security score
+        if [[ $SECURITY_SCORE -lt $MIN_SECURITY_SCORE ]]; then
+          echo "❌ Security score too low: $SECURITY_SCORE < $MIN_SECURITY_SCORE"
+          GATE_PASSED=false
+        else
+          echo "✅ Security score acceptable: $SECURITY_SCORE >= $MIN_SECURITY_SCORE"
+        fi
+        
+        # Check coverage
+        if (( $(echo "$COVERAGE < $MIN_COVERAGE" | bc -l) )); then
+          echo "❌ Coverage too low: $COVERAGE% < $MIN_COVERAGE%"
+          GATE_PASSED=false
+        else
+          echo "✅ Coverage acceptable: $COVERAGE% >= $MIN_COVERAGE%"
+        fi
+        
+        if [[ $GATE_PASSED == "false" ]]; then
+          echo ""
+          echo "🚨 Quality gate FAILED - Please improve code quality before merging"
+          exit 1
+        else
+          echo ""
+          echo "🎉 Quality gate PASSED - Ready for merge!"
+        fi
