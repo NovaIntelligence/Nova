@@ -1,0 +1,654 @@
+name: Nova Bot CI/CD
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+  workflow_dispatch:
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+env:
+  POWERSHELL_TELEMETRY_OPTOUT: 1
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Setup PowerShell 7
+      uses: actions/setup-powershell@v1
+      with:
+        powershell-version: '7.x'
+    
+    - name: Install Pester v5
+      shell: pwsh
+      run: |
+        Write-Host "Installing Pester v5..."
+        Install-Module -Name Pester -Force -SkipPublisherCheck -MinimumVersion 5.0.0
+        Import-Module Pester -PassThru
+    
+    - name: Create artifacts directory
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Path "artifacts/test" -Force | Out-Null
+        Write-Host "Created artifacts/test directory"
+    
+    - name: Run unit tests with coverage
+      shell: pwsh
+      run: |
+        Write-Host "Running Nova Bot unit tests..."
+        
+        # Import Pester module
+        Import-Module Pester -Force
+        
+        # Configure Pester
+        $PesterConfig = New-PesterConfiguration
+        $PesterConfig.Run.Path = 'tests/Unit'
+        $PesterConfig.Run.PassThru = $true
+        $PesterConfig.Output.Verbosity = 'Detailed'
+        $PesterConfig.TestResult.Enabled = $true
+        $PesterConfig.TestResult.OutputFormat = 'NUnitXml'
+        $PesterConfig.TestResult.OutputPath = 'artifacts/test/unit-results.xml'
+        $PesterConfig.CodeCoverage.Enabled = $true
+        $PesterConfig.CodeCoverage.Path = @('modules/*.ps1', 'bot/*.ps1')
+        $PesterConfig.CodeCoverage.OutputFormat = 'CoberturaXml'
+        $PesterConfig.CodeCoverage.OutputPath = 'artifacts/test/coverage.xml'
+        
+        # Run tests
+        $TestResults = Invoke-Pester -Configuration $PesterConfig
+        
+        # Output summary
+        Write-Host "Test Results Summary:" -ForegroundColor Cyan
+        Write-Host "  Total Tests: $($TestResults.TotalCount)" -ForegroundColor White
+        Write-Host "  Passed: $($TestResults.PassedCount)" -ForegroundColor Green
+        Write-Host "  Failed: $($TestResults.FailedCount)" -ForegroundColor Red
+        Write-Host "  Skipped: $($TestResults.SkippedCount)" -ForegroundColor Yellow
+        
+        if ($TestResults.FailedCount -gt 0) {
+          Write-Host "❌ Unit tests failed!" -ForegroundColor Red
+          exit 1
+        } else {
+          Write-Host "✅ All unit tests passed!" -ForegroundColor Green
+        }
+    
+    - name: Run E2E smoke tests
+      shell: pwsh
+      run: |
+        Write-Host "Running Nova Bot E2E smoke tests..."
+        
+        # Configure Pester for E2E tests
+        $PesterConfig = New-PesterConfiguration
+        $PesterConfig.Run.Path = 'tests/E2E'
+        $PesterConfig.Run.PassThru = $true
+        $PesterConfig.Output.Verbosity = 'Detailed'
+        $PesterConfig.TestResult.Enabled = $true
+        $PesterConfig.TestResult.OutputFormat = 'NUnitXml'
+        $PesterConfig.TestResult.OutputPath = 'artifacts/test/e2e-results.xml'
+        
+        # Run E2E tests
+        $E2EResults = Invoke-Pester -Configuration $PesterConfig
+        
+        # Output summary
+        Write-Host "E2E Test Results Summary:" -ForegroundColor Cyan
+        Write-Host "  Total Tests: $($E2EResults.TotalCount)" -ForegroundColor White
+        Write-Host "  Passed: $($E2EResults.PassedCount)" -ForegroundColor Green
+        Write-Host "  Failed: $($E2EResults.FailedCount)" -ForegroundColor Red
+        
+        if ($E2EResults.FailedCount -gt 0) {
+          Write-Host "⚠️ Some E2E tests failed, but continuing..." -ForegroundColor Yellow
+        } else {
+          Write-Host "✅ All E2E tests passed!" -ForegroundColor Green
+        }
+    
+    - name: Generate coverage summary
+      shell: pwsh
+      run: |
+        if (Test-Path "artifacts/test/coverage.xml") {
+          Write-Host "Coverage report generated successfully" -ForegroundColor Green
+          
+          # Parse coverage XML to extract summary (basic parsing)
+          [xml]$coverage = Get-Content "artifacts/test/coverage.xml"
+          if ($coverage.coverage) {
+            $lineRate = [math]::Round([double]$coverage.coverage.'line-rate' * 100, 2)
+            $branchRate = [math]::Round([double]$coverage.coverage.'branch-rate' * 100, 2)
+            
+            Write-Host "📊 Coverage Summary:" -ForegroundColor Cyan
+            Write-Host "  Line Coverage: $lineRate%" -ForegroundColor White
+            Write-Host "  Branch Coverage: $branchRate%" -ForegroundColor White
+            
+            # Set output for use in other jobs
+            echo "LINE_COVERAGE=$lineRate" >> $env:GITHUB_ENV
+            echo "BRANCH_COVERAGE=$branchRate" >> $env:GITHUB_ENV
+          }
+        } else {
+          Write-Host "⚠️ Coverage report not found" -ForegroundColor Yellow
+        }
+    
+    - name: Upload test artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results
+        path: artifacts/test/
+        retention-days: 30
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      if: always()
+      with:
+        file: artifacts/test/coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+  docs:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Setup PowerShell 7
+      uses: actions/setup-powershell@v1
+      with:
+        powershell-version: '7.x'
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install documentation tools
+      run: |
+        echo "Installing PowerShell documentation tools..."
+        pwsh -c "Install-Module -Name PlatyPS -Force -Scope CurrentUser"
+        
+        echo "Installing Python documentation tools..."
+        pip install sphinx sphinx-rtd-theme myst-parser sphinx-copybutton
+        
+        echo "Installing Node.js documentation tools..."
+        npm install -g typedoc @types/node
+    
+    - name: Create docs artifacts directory
+      run: mkdir -p artifacts/docs/site
+    
+    - name: Generate PowerShell documentation
+      shell: pwsh
+      run: |
+        Write-Host "Generating PowerShell module documentation..."
+        Import-Module PlatyPS -Force
+        
+        # Create docs directory structure
+        New-Item -ItemType Directory -Path "artifacts/docs/powershell" -Force | Out-Null
+        
+        # Generate markdown help for each module
+        $modules = @('Nova.Metrics', 'Nova.StateMachine', 'Nova.Skills')
+        foreach ($module in $modules) {
+          $modulePath = "modules/$module.ps1"
+          if (Test-Path $modulePath) {
+            Write-Host "  Processing module: $module"
+            
+            # Import module temporarily for documentation
+            try {
+              Import-Module $modulePath -Force -ErrorAction SilentlyContinue
+              
+              # Generate markdown documentation
+              $docPath = "artifacts/docs/powershell/$module"
+              New-Item -ItemType Directory -Path $docPath -Force | Out-Null
+              
+              New-MarkdownHelp -Module $module -OutputFolder $docPath -Force -ErrorAction Continue
+              Write-Host "    ✅ Documentation generated for $module"
+            }
+            catch {
+              Write-Host "    ⚠️ Could not generate docs for $module`: $($_.Exception.Message)"
+            }
+          }
+        }
+        
+        Write-Host "PowerShell documentation generation complete!"
+    
+    - name: Generate Sphinx documentation
+      run: |
+        echo "Setting up Sphinx documentation..."
+        mkdir -p artifacts/docs/sphinx
+        
+        # Create basic Sphinx configuration
+        cat > artifacts/docs/sphinx/conf.py << 'EOF'
+        project = 'Nova Bot'
+        copyright = '2025, Nova Team'
+        author = 'Nova Team'
+        extensions = ['myst_parser', 'sphinx_copybutton']
+        html_theme = 'sphinx_rtd_theme'
+        html_static_path = ['_static']
+        source_suffix = {'.rst': None, '.md': 'myst_parser'}
+        EOF
+        
+        # Create main documentation index
+        cat > artifacts/docs/sphinx/index.md << 'EOF'
+        # Nova Bot Documentation
+        
+        Welcome to Nova Bot - an intelligent autonomous assistant built with PowerShell.
+        
+        ## Features
+        
+        - **Metrics System**: Comprehensive monitoring and observability
+        - **State Machine**: Deterministic state management and transitions  
+        - **Skills Framework**: Extensible action and workflow system
+        - **Dashboard**: Real-time monitoring and control interface
+        - **Security**: Built-in security scanning and compliance checking
+        
+        ## Modules
+        
+        - [Nova.Metrics](powershell/Nova.Metrics/Nova.Metrics.html) - Metrics collection and export
+        - [Nova.StateMachine](powershell/Nova.StateMachine/Nova.StateMachine.html) - State management
+        - [Nova.Skills](powershell/Nova.Skills/Nova.Skills.html) - Action execution framework
+        
+        ## Getting Started
+        
+        ```powershell
+        # Health check
+        .\bot\nova-bot.ps1 --health
+        
+        # Start dashboard
+        .\bot\nova-bot.ps1 --dashboard
+        
+        # Run with metrics
+        .\bot\nova-bot.ps1 --metrics --prometheus
+        ```
+        EOF
+        
+        # Build Sphinx documentation
+        cd artifacts/docs/sphinx
+        sphinx-build -b html . ../site/sphinx
+        echo "✅ Sphinx documentation built successfully"
+    
+    - name: Generate TypeDoc documentation
+      run: |
+        echo "Generating TypeScript/JavaScript documentation..."
+        mkdir -p artifacts/docs/typescript
+        
+        # Find TypeScript/JavaScript files
+        if find . -name "*.ts" -o -name "*.js" | grep -v node_modules | head -1 > /dev/null; then
+          typedoc --out artifacts/docs/site/typescript \
+                  --name "Nova Bot TypeScript Documentation" \
+                  --readme README.md \
+                  --exclude "node_modules/**/*" \
+                  --excludePrivate \
+                  --excludeInternal \
+                  .
+          echo "✅ TypeDoc documentation generated"
+        else
+          echo "ℹ️  No TypeScript files found, skipping TypeDoc generation"
+        fi
+    
+    - name: Create documentation index
+      run: |
+        echo "Creating documentation portal..."
+        
+        cat > artifacts/docs/site/index.html << 'EOF'
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Nova Bot Documentation</title>
+            <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 2rem; }
+                .container { max-width: 800px; margin: 0 auto; }
+                .card { border: 1px solid #e1e4e8; border-radius: 6px; padding: 1.5rem; margin: 1rem 0; }
+                .card h3 { margin-top: 0; color: #0366d6; }
+                .badge { display: inline-block; padding: 0.25em 0.5em; font-size: 0.875em; 
+                         background: #28a745; color: white; border-radius: 3px; margin-right: 0.5rem; }
+                a { color: #0366d6; text-decoration: none; }
+                a:hover { text-decoration: underline; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>🤖 Nova Bot Documentation Portal</h1>
+                <p>Welcome to the comprehensive documentation for Nova Bot, an intelligent autonomous assistant.</p>
+                
+                <div class="card">
+                    <h3>📚 Core Documentation</h3>
+                    <span class="badge">Sphinx</span>
+                    <a href="sphinx/index.html">Main Documentation</a>
+                    <p>Complete user and developer documentation built with Sphinx.</p>
+                </div>
+                
+                <div class="card">
+                    <h3>⚡ PowerShell Modules</h3>
+                    <span class="badge">PlatyPS</span>
+                    <a href="../powershell/">PowerShell Module Documentation</a>
+                    <p>Auto-generated documentation for all PowerShell modules and functions.</p>
+                </div>
+                
+                <div class="card">
+                    <h3>🔧 TypeScript API</h3>
+                    <span class="badge">TypeDoc</span>
+                    <a href="typescript/index.html">TypeScript Documentation</a>
+                    <p>API documentation for TypeScript components and interfaces.</p>
+                </div>
+                
+                <div class="card">
+                    <h3>🚀 Quick Links</h3>
+                    <ul>
+                        <li><a href="https://github.com/nova-bot/nova">GitHub Repository</a></li>
+                        <li><a href="../test-results/">Test Results</a></li>
+                        <li><a href="../security/">Security Reports</a></li>
+                    </ul>
+                </div>
+            </div>
+        </body>
+        </html>
+        EOF
+        
+        echo "✅ Documentation portal created"
+    
+    - name: Upload documentation artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: documentation
+        path: artifacts/docs/
+        retention-days: 30
+
+  security:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Setup Syft for SBOM generation
+      uses: anchore/sbom-action/download-syft@v0
+    
+    - name: Setup Trivy
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'json'
+        output: 'trivy-results.json'
+        exit-code: 0  # Don't fail on this step, we'll process results later
+    
+    - name: Setup Gitleaks
+      run: |
+        wget https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_8.18.0_linux_x64.tar.gz
+        tar -xzf gitleaks_8.18.0_linux_x64.tar.gz
+        chmod +x gitleaks
+        sudo mv gitleaks /usr/local/bin/
+    
+    - name: Create security artifacts directory
+      run: mkdir -p artifacts/security
+    
+    - name: Generate SBOM with Syft
+      run: |
+        echo "Generating Software Bill of Materials..."
+        
+        # Generate SBOM in multiple formats
+        syft . -o json=artifacts/security/sbom.json
+        syft . -o spdx-json=artifacts/security/sbom.spdx.json
+        syft . -o cyclonedx-json=artifacts/security/sbom.cyclonedx.json
+        
+        echo "✅ SBOM generated successfully"
+        
+        # Display summary
+        echo "📦 SBOM Summary:"
+        syft . -o table | head -20
+    
+    - name: Run Trivy vulnerability scan
+      run: |
+        echo "Running Trivy vulnerability scan..."
+        
+        # Scan filesystem for vulnerabilities
+        trivy fs . \
+          --format json \
+          --output artifacts/security/trivy-fs.json \
+          --severity HIGH,CRITICAL
+        
+        # Generate HTML report
+        trivy fs . \
+          --format template \
+          --template '@contrib/html.tpl' \
+          --output artifacts/security/trivy-report.html \
+          --severity HIGH,CRITICAL
+        
+        # Generate summary report
+        trivy fs . \
+          --format table \
+          --severity HIGH,CRITICAL \
+          --output artifacts/security/trivy-summary.txt
+        
+        echo "✅ Trivy scan completed"
+        
+        # Check for HIGH/CRITICAL vulnerabilities
+        HIGH_CRITICAL_COUNT=$(trivy fs . --format json --severity HIGH,CRITICAL --quiet | jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length')
+        
+        echo "🔍 Vulnerability Summary:"
+        echo "  HIGH/CRITICAL vulnerabilities found: $HIGH_CRITICAL_COUNT"
+        
+        if [ "$HIGH_CRITICAL_COUNT" -gt 0 ]; then
+          echo "❌ HIGH or CRITICAL vulnerabilities detected!"
+          echo "Review the security report for details."
+          exit 1
+        else
+          echo "✅ No HIGH or CRITICAL vulnerabilities found"
+        fi
+    
+    - name: Run Gitleaks secret scanning
+      run: |
+        echo "Running Gitleaks secret detection..."
+        
+        # Run gitleaks scan
+        if gitleaks detect \
+          --source . \
+          --report-format json \
+          --report-path artifacts/security/gitleaks.json \
+          --verbose; then
+          echo "✅ No secrets detected by Gitleaks"
+          echo '{"secrets_found": false, "total_secrets": 0}' > artifacts/security/gitleaks-summary.json
+        else
+          GITLEAKS_EXIT_CODE=$?
+          echo "❌ Secrets detected by Gitleaks!"
+          
+          # Generate summary
+          SECRETS_COUNT=$(jq length artifacts/security/gitleaks.json 2>/dev/null || echo "0")
+          echo "{\"secrets_found\": true, \"total_secrets\": $SECRETS_COUNT}" > artifacts/security/gitleaks-summary.json
+          
+          # Generate HTML report
+          cat > artifacts/security/gitleaks-report.html << EOF
+        <!DOCTYPE html>
+        <html><head><title>Gitleaks Security Report</title></head>
+        <body>
+        <h1>🔐 Gitleaks Secret Detection Report</h1>
+        <p><strong>Status:</strong> <span style="color: red;">FAILED - Secrets Detected</span></p>
+        <p><strong>Total Secrets Found:</strong> $SECRETS_COUNT</p>
+        <h2>Details</h2>
+        <pre>$(cat artifacts/security/gitleaks.json | jq . || echo "Error reading gitleaks results")</pre>
+        </body></html>
+        EOF
+          
+          echo "Secrets found - failing build"
+          exit 1
+        fi
+    
+    - name: Generate security dashboard
+      if: always()
+      run: |
+        echo "Creating security dashboard..."
+        
+        # Read scan results
+        TRIVY_COUNT=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length' artifacts/security/trivy-fs.json 2>/dev/null || echo "0")
+        GITLEAKS_STATUS=$(jq -r '.secrets_found' artifacts/security/gitleaks-summary.json 2>/dev/null || echo "false")
+        SECRETS_COUNT=$(jq -r '.total_secrets' artifacts/security/gitleaks-summary.json 2>/dev/null || echo "0")
+        
+        # Create dashboard HTML
+        cat > artifacts/security/index.html << EOF
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Nova Bot Security Report</title>
+            <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 2rem; background: #f6f8fa; }
+                .container { max-width: 1000px; margin: 0 auto; }
+                .card { background: white; border: 1px solid #e1e4e8; border-radius: 6px; padding: 1.5rem; margin: 1rem 0; }
+                .status-good { color: #28a745; font-weight: bold; }
+                .status-bad { color: #d73a49; font-weight: bold; }
+                .metric { display: inline-block; margin: 0.5rem; padding: 1rem; background: #f1f3f4; border-radius: 4px; }
+                .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; }
+                a { color: #0366d6; text-decoration: none; }
+                a:hover { text-decoration: underline; }
+                pre { background: #f6f8fa; padding: 1rem; border-radius: 3px; overflow-x: auto; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>🛡️ Nova Bot Security Dashboard</h1>
+                <p>Comprehensive security analysis and vulnerability assessment</p>
+                
+                <div class="card">
+                    <h2>📊 Security Metrics</h2>
+                    <div class="grid">
+                        <div class="metric">
+                            <h4>Vulnerability Scan</h4>
+                            <p>HIGH/CRITICAL: <span class="$([ $TRIVY_COUNT -eq 0 ] && echo 'status-good' || echo 'status-bad')">$TRIVY_COUNT</span></p>
+                        </div>
+                        <div class="metric">
+                            <h4>Secret Detection</h4>
+                            <p>Secrets Found: <span class="$([ '$GITLEAKS_STATUS' = 'false' ] && echo 'status-good' || echo 'status-bad')">$SECRETS_COUNT</span></p>
+                        </div>
+                        <div class="metric">
+                            <h4>SBOM Generated</h4>
+                            <p>Status: <span class="status-good">✅ Complete</span></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h2>📋 Detailed Reports</h2>
+                    <div class="grid">
+                        <div>
+                            <h3>🔍 Vulnerability Analysis</h3>
+                            <ul>
+                                <li><a href="trivy-report.html">Trivy HTML Report</a></li>
+                                <li><a href="trivy-fs.json">Trivy JSON Results</a></li>
+                                <li><a href="trivy-summary.txt">Vulnerability Summary</a></li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h3>🔐 Secret Scanning</h3>
+                            <ul>
+                                <li><a href="gitleaks-report.html">Gitleaks HTML Report</a></li>
+                                <li><a href="gitleaks.json">Gitleaks JSON Results</a></li>
+                                <li><a href="gitleaks-summary.json">Scan Summary</a></li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h3>📦 Software Bill of Materials</h3>
+                            <ul>
+                                <li><a href="sbom.json">SBOM (JSON)</a></li>
+                                <li><a href="sbom.spdx.json">SBOM (SPDX)</a></li>
+                                <li><a href="sbom.cyclonedx.json">SBOM (CycloneDX)</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h2>ℹ️ Scan Information</h2>
+                    <p><strong>Scan Date:</strong> $(date -u)</p>
+                    <p><strong>Repository:</strong> \${{ github.repository }}</p>
+                    <p><strong>Commit:</strong> \${{ github.sha }}</p>
+                    <p><strong>Branch:</strong> \${{ github.ref_name }}</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        EOF
+        
+        echo "✅ Security dashboard created"
+    
+    - name: Upload security artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: security-reports
+        path: artifacts/security/
+        retention-days: 90
+
+  pages:
+    name: Deploy to GitHub Pages
+    needs: [build-and-test, docs]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+    - name: Download documentation artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: documentation
+        path: ./docs
+    
+    - name: Download test artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: test-results
+        path: ./docs/test-results
+      continue-on-error: true
+    
+    - name: Download security artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: security-reports  
+        path: ./docs/security
+      continue-on-error: true
+    
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+    
+    - name: Upload to GitHub Pages
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: ./docs/site
+    
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4

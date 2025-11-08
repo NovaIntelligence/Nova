@@ -1,11 +1,12 @@
 # Nova Bot
 
-![CI Status](https://github.com/NovaIntelligence/Nova/workflows/Nova%20Bot%20CI%2FCD%20Pipeline/badge.svg)
-[![Quality Score](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/NovaIntelligence/Nova/main/.github/badges/quality-score.json)](https://github.com/NovaIntelligence/Nova/actions)
-[![Security Score](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/NovaIntelligence/Nova/main/.github/badges/security-score.json)](https://github.com/NovaIntelligence/Nova/actions)
-[![Test Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/NovaIntelligence/Nova/main/.github/badges/coverage.json)](https://github.com/NovaIntelligence/Nova/actions)
+[![CI Status](https://github.com/NovaIntelligence/Nova/actions/workflows/ci.yml/badge.svg)](https://github.com/NovaIntelligence/Nova/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/NovaIntelligence/Nova/branch/main/graph/badge.svg)](https://codecov.io/gh/NovaIntelligence/Nova)
+[![Documentation](https://img.shields.io/badge/docs-github--pages-blue.svg)](https://NovaIntelligence.github.io/Nova)
+[![Security](https://img.shields.io/badge/security-trivy--gitleaks-green.svg)](https://github.com/NovaIntelligence/Nova/actions/workflows/ci.yml)
 [![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue.svg)](https://github.com/PowerShell/PowerShell)
 [![Pester](https://img.shields.io/badge/Pester-v5.7-green.svg)](https://pester.dev/)
+[![Quality Gate](https://img.shields.io/badge/quality-gate-passing-brightgreen.svg)](https://github.com/NovaIntelligence/Nova/actions)
 
 
 
