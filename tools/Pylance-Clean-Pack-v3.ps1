@@ -15,7 +15,7 @@ function Update-Text {
     }
 }
 
-function Apply-Targeted-Fixes {
+function Invoke-TargetedFixes {
     param([string]$FilePath)
     
     if (-not (Test-Path $FilePath)) {
@@ -111,7 +111,7 @@ $targetFile = "D:\Nova\model\Train-And-Package.py"
 
 Write-Host "Starting Pylance Clean Pack v3 - Targeted Fixes..."
 
-Apply-Targeted-Fixes -FilePath $targetFile
+Invoke-TargetedFixes -FilePath $targetFile
 
 Write-Host ""
 Write-Host "Pylance Clean Pack v3 completed!"

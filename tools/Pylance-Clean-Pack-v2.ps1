@@ -16,7 +16,7 @@ function Update-Text {
     }
 }
 
-function Ensure-Once {
+function Add-OncePattern {
     param([string]$FilePath, [string]$Pattern, [string]$Insertion)
     if (-not (Test-Path $FilePath)) { return }
     
@@ -28,7 +28,7 @@ function Ensure-Once {
     }
 }
 
-function Apply-Advanced-Fixes {
+function Invoke-AdvancedFixes {
     param([string]$FilePath)
     
     $content = Get-Content -Path $FilePath -Raw -Encoding UTF8
@@ -75,7 +75,7 @@ def df_records(df: pd.DataFrame) -> List[Dict[str, Any]]:
     
     # Add FastAPI exception handler imports
     if ($content -match "@app\.exception_handler" -and $content -notmatch "from fastapi.responses import JSONResponse") {
-        Ensure-Once -FilePath $FilePath -Pattern "from fastapi.responses import JSONResponse" -Insertion "from fastapi.responses import JSONResponse"
+        Add-OncePattern -FilePath $FilePath -Pattern "from fastapi.responses import JSONResponse" -Insertion "from fastapi.responses import JSONResponse"
         $modified = $true
     }
     
@@ -153,12 +153,12 @@ class Transformer(Protocol):
     
     # Add sklearn imports clarity
     if ($content -match "train_test_split" -and $content -notmatch "from sklearn.model_selection import train_test_split") {
-        Ensure-Once -FilePath $FilePath -Pattern "from sklearn.model_selection import train_test_split" -Insertion "from sklearn.model_selection import train_test_split"
+        Add-OncePattern -FilePath $FilePath -Pattern "from sklearn.model_selection import train_test_split" -Insertion "from sklearn.model_selection import train_test_split"
         $modified = $true
     }
     
     if ($content -match "precision_recall_fscore_support" -and $content -notmatch "from sklearn.metrics import precision_recall_fscore_support") {
-        Ensure-Once -FilePath $FilePath -Pattern "from sklearn.metrics import precision_recall_fscore_support" -Insertion "from sklearn.metrics import precision_recall_fscore_support"
+        Add-OncePattern -FilePath $FilePath -Pattern "from sklearn.metrics import precision_recall_fscore_support" -Insertion "from sklearn.metrics import precision_recall_fscore_support"
         $modified = $true
     }
     
@@ -171,7 +171,7 @@ class Transformer(Protocol):
     }
 }
 
-function Fix-File {
+function Repair-File {
     param([string]$FilePath)
     
     if (-not (Test-Path $FilePath)) {
@@ -186,20 +186,20 @@ function Fix-File {
     Copy-Item -Path $FilePath -Destination $backupPath -Force
     
     # Add comprehensive typing imports
-    Ensure-Once -FilePath $FilePath -Pattern "from typing import" -Insertion "from typing import Any, Dict, List, Optional, Sequence, Mapping, Set, Tuple, Union, cast, Protocol"
+    Add-OncePattern -FilePath $FilePath -Pattern "from typing import" -Insertion "from typing import Any, Dict, List, Optional, Sequence, Mapping, Set, Tuple, Union, cast, Protocol"
     
     # Add __future__ annotations
-    Ensure-Once -FilePath $FilePath -Pattern "from __future__ import annotations" -Insertion "from __future__ import annotations"
+    Add-OncePattern -FilePath $FilePath -Pattern "from __future__ import annotations" -Insertion "from __future__ import annotations"
     
     # Add numpy import if needed
     $content = Get-Content -Path $FilePath -Raw -Encoding UTF8
     if ($content -match "np\." -and $content -notmatch "import numpy as np") {
-        Ensure-Once -FilePath $FilePath -Pattern "import numpy as np" -Insertion "import numpy as np"
+        Add-OncePattern -FilePath $FilePath -Pattern "import numpy as np" -Insertion "import numpy as np"
     }
     
     # Add pydantic field_validator import if needed
     if ($content -match "@validator" -and $content -notmatch "from pydantic import.*field_validator") {
-        Ensure-Once -FilePath $FilePath -Pattern "from pydantic import.*field_validator" -Insertion "from pydantic import BaseModel, field_validator"
+        Add-OncePattern -FilePath $FilePath -Pattern "from pydantic import.*field_validator" -Insertion "from pydantic import BaseModel, field_validator"
     }
     
     # Basic Pydantic v2 migration
@@ -208,8 +208,8 @@ function Fix-File {
     
     # Ensure FastAPI imports for exception handlers
     if ($content -match "HTTPException|exception_handler|@app\.exception_handler") {
-        Ensure-Once -FilePath $FilePath -Pattern "from fastapi import.*Request" -Insertion "from fastapi import Request"
-        Ensure-Once -FilePath $FilePath -Pattern "from fastapi.responses import JSONResponse" -Insertion "from fastapi.responses import JSONResponse"
+        Add-OncePattern -FilePath $FilePath -Pattern "from fastapi import.*Request" -Insertion "from fastapi import Request"
+        Add-OncePattern -FilePath $FilePath -Pattern "from fastapi.responses import JSONResponse" -Insertion "from fastapi.responses import JSONResponse"
     }
     
     # Fix pandas imports
@@ -235,7 +235,7 @@ Write-Host "Enhanced with ML typing patterns and precise fixes"
 Write-Host "Target files: $($targetFiles.Count)"
 
 foreach ($file in $targetFiles) {
-    Fix-File -FilePath $file
+    Repair-File -FilePath $file
 }
 
 Write-Host ""
@@ -252,3 +252,4 @@ Write-Host "- Enhanced sklearn imports clarity"
 Write-Host ""
 Write-Host "Please reload VS Code to see all resolved warnings."
 Write-Host "Backup files created with .v2.bak extension."
+

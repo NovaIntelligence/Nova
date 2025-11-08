@@ -15,7 +15,7 @@ function Update-Text {
     }
 }
 
-function Ensure-Once {
+function Add-OncePattern {
     param([string]$FilePath, [string]$Pattern, [string]$Insertion)
     if (-not (Test-Path $FilePath)) { return }
     
@@ -27,7 +27,7 @@ function Ensure-Once {
     }
 }
 
-function Fix-File {
+function Repair-File {
     param([string]$FilePath)
     
     if (-not (Test-Path $FilePath)) {
@@ -42,10 +42,10 @@ function Fix-File {
     Copy-Item -Path $FilePath -Destination $backupPath -Force
     
     # Add typing imports if not present
-    Ensure-Once -FilePath $FilePath -Pattern "from typing import" -Insertion "from typing import Any, Dict, List, Optional, Sequence, Mapping, Set, Tuple, Union, cast"
+    Add-OncePattern -FilePath $FilePath -Pattern "from typing import" -Insertion "from typing import Any, Dict, List, Optional, Sequence, Mapping, Set, Tuple, Union, cast"
     
     # Add __future__ annotations
-    Ensure-Once -FilePath $FilePath -Pattern "from __future__ import annotations" -Insertion "from __future__ import annotations"
+    Add-OncePattern -FilePath $FilePath -Pattern "from __future__ import annotations" -Insertion "from __future__ import annotations"
     
     # Pydantic v2 migration: @validator -> @field_validator
     Update-Text -FilePath $FilePath -Old "@validator(" -New "@field_validator("
@@ -53,7 +53,7 @@ function Fix-File {
     
     # Ensure FastAPI Request import for exception handlers
     if ((Get-Content -Path $FilePath -Raw) -match "HTTPException|exception_handler") {
-        Ensure-Once -FilePath $FilePath -Pattern "from fastapi import.*Request" -Insertion "from fastapi import Request"
+        Add-OncePattern -FilePath $FilePath -Pattern "from fastapi import.*Request" -Insertion "from fastapi import Request"
     }
     
     # Fix pandas imports
@@ -80,7 +80,7 @@ Write-Host "Starting Pylance Clean Pack v1..."
 Write-Host "Target files: $($targetFiles.Count)"
 
 foreach ($file in $targetFiles) {
-    Fix-File -FilePath $file
+    Repair-File -FilePath $file
 }
 
 Write-Host ""
