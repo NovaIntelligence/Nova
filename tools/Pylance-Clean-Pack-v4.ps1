@@ -3,7 +3,7 @@
 
 $ErrorActionPreference = "Continue"
 
-function Apply-Final-Fixes {
+function Invoke-FinalFixes {
     param([string]$FilePath)
     
     if (-not (Test-Path $FilePath)) {

@@ -110,7 +110,7 @@ function Submit-Action {
     return $action
 }
 
-function Process-Action {
+function Invoke-Action {
     <#
     .SYNOPSIS
     Processes an action from the queue
