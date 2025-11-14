@@ -33,17 +33,33 @@ coverage/
 
 # Backup and temp files
 *.bak
+*.backup
 *.tmp
 ~$*
 
 # Repository-specific heavy artifacts
-artifacts/dr-restore/
+artifacts/
+tools/artifacts/
 apps/_backups/
+backups/
 **/_nova/runlog/
 voice_sessions/
 voice/sessions/
 trade-bot/.venv312/
 Nova_Backups/
+nova-backend-db/
+out/
+
+# Secrets and env
+creds/
+secrets/
+env/
+.env
+.env.*
+*.env
+
+# Test outputs
+testResults.xml
 
 # Misc cache
 .nova-cache/
