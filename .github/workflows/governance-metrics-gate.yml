@@ -1,0 +1,67 @@
+name: governance-metrics-gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  metrics-gate:
+    name: Require metrics JSON for infra/scale changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine changed files
+        id: diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_REF="${{ github.base_ref }}"
+          echo "Base ref: $BASE_REF"
+          git fetch origin "$BASE_REF" --depth=1
+          CHANGED=$(git diff --name-only --diff-filter=ACMRT "origin/${BASE_REF}...HEAD" | tr '\n' ' ')
+          echo "changed=$CHANGED" >> $GITHUB_OUTPUT
+
+      - name: Enforce governance metrics for critical paths
+        if: ${{ steps.diff.outputs.changed != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHANGED=( ${{ steps.diff.outputs.changed }} )
+          echo "Changed files:" "${CHANGED[@]}"
+          CRITICAL_REGEX='^(cloudrun/|gcp/|nova-stack/|ops/|platform/|infra/|services/|nova-backend-db/|observability/|security/|governance/policies/)'
+          METRICS_REGEX='^governance/metrics/.+\.json$'
+
+          need_metrics=0
+          has_metrics=0
+          for f in "${CHANGED[@]}"; do
+            if [[ "$f" =~ $CRITICAL_REGEX ]]; then
+              need_metrics=1
+            fi
+            if [[ "$f" =~ $METRICS_REGEX ]]; then
+              has_metrics=1
+            fi
+          done
+
+          if [[ "$need_metrics" -eq 1 ]]; then
+            if [[ "$has_metrics" -eq 1 ]]; then
+              echo "Metrics JSON present. Gate passed."
+              exit 0
+            else
+              echo "::error::Critical infra/scale changes detected without governance metrics JSON."
+              echo "Please add a file like governance/metrics/<ticket-or-pr>.<yyyy-mm-dd>.json including:"
+              echo "- slo: service SLOs"
+              echo "- sla: customer SLAs"
+              echo "- cpo: cost per operation estimate"
+              echo "- cac: acquisition cost impacts (if applicable)"
+              echo "- proof: measurable success criteria prior to scale"
+              echo "- rollout_plan: staged rollout & rollback criteria"
+              exit 1
+            fi
+          else
+            echo "No critical path changes. Gate skipped."
+            exit 0
+          fi
