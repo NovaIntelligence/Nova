@@ -151,6 +151,7 @@ core/vision/incoming/
 
 # One-Paste Pack artifacts
 ci-artifacts/
+tools/artifacts/
 quality-report*.json
 security-report*.json
 coverage-report*.json
