@@ -1,0 +1,12 @@
+Hi {{name}},
+
+Saw {{company}}{{#website}} ({{website}}){{/website}} and had a quick idea to grow pipeline without adding headcount.
+
+In short: we run a targeted outbound + offer revamp that reliably books qualified calls. We focus on quality (conversion) over volume and iterate copy/styles that actually convert. {{notes}}
+
+If it’s useful, I can share a 2-step plan we’ve used to lift replies by 10–30% and book meetings within a week.
+
+Worth a 10-minute chat this week?
+
+— Nova Intelligence
+{{today}}
