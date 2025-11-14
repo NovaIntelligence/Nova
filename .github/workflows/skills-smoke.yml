@@ -1,0 +1,26 @@
+name: Skills Smoke Tests
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+
+jobs:
+  skills-smoke:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Pester Skills Smoke Tests
+        shell: pwsh
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+          Write-Host 'Running Pester tests for Skills...'
+          if (-not (Get-Module -ListAvailable -Name Pester)) {
+            Install-Module Pester -Scope CurrentUser -Force -SkipPublisherCheck
+          }
+          Import-Module Pester
+          Invoke-Pester -Path 'tests/Skills.Smoke.Tests.ps1' -CI -Output Detailed

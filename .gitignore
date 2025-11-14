@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Python virtual environments
+.venv/
+.venv*/
+**/.venv*/
+venv/
+**/venv/
+
+# Python bytecode
+__pycache__/
+**/__pycache__/
+*.pyc
+
+# Logs
+*.log
+**/*.log
+logs/
+**/logs/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Build artifacts
+build/
+dist/
+coverage/
+
+# Backup and temp files
+*.bak
+*.tmp
+~$*
+
+# Repository-specific heavy artifacts
+artifacts/dr-restore/
+apps/_backups/
+**/_nova/runlog/
+voice_sessions/
+voice/sessions/
+trade-bot/.venv312/
+Nova_Backups/
+
+# Misc cache
+.nova-cache/
+.cache/
