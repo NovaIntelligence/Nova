@@ -129,6 +129,9 @@ cases/
 ledger/governance/
 ledger/journals/
 
+# Disaster-recovery/restored artifacts and large dumps
+tools/artifacts/
+
 # Terraform local state, plugins, and providers
 **/.terraform/
 **/.terraform.lock.hcl
