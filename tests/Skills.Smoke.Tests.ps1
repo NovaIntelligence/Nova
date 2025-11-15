@@ -37,4 +37,27 @@ Describe 'Skills Smoke Tests' {
         [double]$js.outputs.WeeksToBreakEven | Should -BeGreaterThan 0
         Remove-Item -Recurse -Force $outDir
     }
+
+    It 'Offer Architect generates pages, ads, and summary' {
+        $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
+        $csv = Join-Path $repoRoot 'samples/skills/sample-offers.csv'
+        Test-Path $csv | Should -BeTrue
+
+        $outDir = Join-Path $env:TEMP ("nova_offers_out_" + (Get-Date -Format 'yyyyMMddHHmmssfff'))
+        & (Join-Path $repoRoot 'tools/skills/Offer-Architect.ps1') -OffersCsv $csv -OutDir $outDir -MaxOffers 5
+
+        $summary = Join-Path $outDir 'offer_architect_summary.json'
+        Test-Path $summary | Should -BeTrue
+        $js = Get-Content -Path $summary -Raw | ConvertFrom-Json
+        [int]$js.generated | Should -BeGreaterThan 0
+        $items = @($js.items)
+        $items.Count | Should -BeGreaterThan 0
+        # Check that at least one generated pair exists
+        $hasFiles = $false
+        foreach ($it in $items) {
+            if ((Test-Path $it.page) -and (Test-Path $it.ads)) { $hasFiles = $true; break }
+        }
+        $hasFiles | Should -BeTrue
+        Remove-Item -Recurse -Force $outDir
+    }
 }

@@ -56,6 +56,29 @@ pwsh -File tools/skills/Outbound-Deal-Machine.ps1 -LeadsCsv "samples/skills/samp
 pwsh -File tools/skills/Self-Sufficiency-Model.ps1 -InfraMonthlyCost 200 -AvgDealValue 2500 -CloseRate 0.2 -MeetingsPerWeek 5
 ```
 
+- **Offer Architect v0.1:**
+
+```powershell
+pwsh -File tools/skills/Offer-Architect.ps1 -OffersCsv "samples/skills/sample-offers.csv" -OutDir "$env:TEMP\nova_offers_out"
+```
+
+- **Cold Caller with optional SMTP (safe-by-default):**
+
+```powershell
+# Dry-run (no email send, default)
+pwsh -File tools/skills/Outbound-Deal-Machine.ps1 -LeadsCsv "samples/skills/sample-leads.csv" -OutDir "$env:TEMP\nova_out"
+
+# Live send requires BOTH the flag and env gate
+$env:OUTBOUND_SEND_ENABLED = 'true'
+$env:SMTP_FROM = 'you@example.com'
+$env:SMTP_HOST = 'smtp.example.com'
+$env:SMTP_PORT = '587'
+$env:SMTP_USER = 'you@example.com'
+$env:SMTP_PASS = '<app_password_or_token>'
+$env:SMTP_USE_SSL = 'true'
+pwsh -File tools/skills/Outbound-Deal-Machine.ps1 -LeadsCsv "samples/skills/sample-leads.csv" -OutDir "$env:TEMP\nova_out" -SendViaSmtp
+```
+
 ## 🏗️ **Architecture Overview**
 
 ```mermaid
