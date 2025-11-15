@@ -4,6 +4,13 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   metrics-gate:
     name: Require metrics JSON for infra/scale changes
@@ -32,7 +39,7 @@ jobs:
           set -euo pipefail
           CHANGED=( ${{ steps.diff.outputs.changed }} )
           echo "Changed files:" "${CHANGED[@]}"
-          CRITICAL_REGEX='^(cloudrun/|gcp/|nova-stack/|ops/|platform/|infra/|services/|nova-backend-db/|observability/|security/|governance/policies/)'
+          CRITICAL_REGEX='^(cloudrun/|gcp/|nova-stack/|ops/|platform/|infra/|services/|nova-backend-db/|observability/|security/|governance/policies/|deploy/|k8s/|terraform/|containers/|docker/)'
           METRICS_REGEX='^governance/metrics/.+\.json$'
 
           need_metrics=0

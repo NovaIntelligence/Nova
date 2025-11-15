@@ -36,6 +36,13 @@ This isn't just a technical architecture; it's a **bridge between worlds**—con
 
 Nova Bot is a sophisticated automation framework designed for mission-critical environments, featuring real-time metrics collection, secure action execution pipelines, and enterprise-grade monitoring capabilities. Built with PowerShell at its core, Nova provides robust automation solutions with comprehensive testing, documentation, and security validation.
 
+### Security Scans & Triage
+
+- The `Security` workflow runs Gitleaks (secrets), Trivy filesystem/config scans, and generates a Syft SBOM.
+- SARIF results appear under GitHub → Security → Code scanning alerts. Click into an alert for file/line details and remediation guidance.
+- Build artifacts include `artifacts/security/gitleaks.sarif`, `trivy-fs.sarif`, `trivy-config.sarif`, and `sbom.spdx.json` for offline review.
+- Failing criteria: any detected secrets or Trivy HIGH/CRITICAL vulns/config findings will fail the workflow. Suppress only with justification and scope-limited exceptions.
+
 ## 🚀 Quick Skills
 
 - **Run Skills Dashboard:**
