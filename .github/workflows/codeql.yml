@@ -15,23 +15,17 @@ jobs:
       contents: read
       security-events: write
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@f94c9befffa4412c356fb5463a959ab7821dd57e
         with:
-          languages: python,javascript
-        continue-on-error: true
+          languages: javascript, python, csharp
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
-        continue-on-error: true
+        uses: github/codeql-action/autobuild@f94c9befffa4412c356fb5463a959ab7821dd57e
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:multi"
-        continue-on-error: true
+        uses: github/codeql-action/analyze@f94c9befffa4412c356fb5463a959ab7821dd57e

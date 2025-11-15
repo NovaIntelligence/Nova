@@ -10,7 +10,93 @@ permissions:
   contents: read
 
 jobs:
-  security-scans:
+  pr-security:
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [ 'core', 'services', 'nova-stack', 'apps', 'platform' ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Prepare artifacts dir
+        run: |
+          mkdir -p artifacts/security
+
+      - name: Gitleaks (secrets scan)
+        uses: gitleaks/gitleaks-action@1f2d10fb689bc07a5f56f48d6db61f5bbbe772fa
+        with:
+          args: detect --source . --no-git --redact --report-format sarif --report-path artifacts/security/gitleaks.sarif --config-path security/gitleaks/gitleaks.toml
+
+      - name: Upload Gitleaks SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@f94c9befffa4412c356fb5463a959ab7821dd57e
+        with:
+          sarif_file: artifacts/security/gitleaks.sarif
+
+      - name: Syft SBOM (SPDX-JSON)
+        continue-on-error: true
+        uses: anchore/sbom-action@e8d2a6937ecead383dfe75190d104edd1f9c5751
+        with:
+          path: .
+          format: spdx-json
+          output-file: artifacts/security/sbom.spdx.json
+
+      - name: Upload SBOM artifact
+        if: always()
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
+        with:
+          name: sbom-spdx-json
+          path: artifacts/security/sbom.spdx.json
+
+      - name: Trivy FS vulnerability scan (SARIF) - ${{ matrix.target }}
+        uses: aquasecurity/trivy-action@b2933f565dbc598b29947660e66259e3c7bc8561
+        with:
+          scan-type: fs
+          scan-ref: ${{ matrix.target }}
+          scanners: vuln
+          format: sarif
+          output: artifacts/security/trivy-fs-${{ matrix.target }}.sarif
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+          skip-dirs: node_modules, vendor, .git, docs, tests, backups, logs, artifacts
+          skip-files: '**/*.md'
+          trivyignores: .trivyignore
+          limit-severities-for-sarif: true
+          exit-code: '1'
+
+      - name: Upload Trivy FS SARIF - ${{ matrix.target }}
+        if: always()
+        uses: github/codeql-action/upload-sarif@f94c9befffa4412c356fb5463a959ab7821dd57e
+        with:
+          sarif_file: artifacts/security/trivy-fs-${{ matrix.target }}.sarif
+
+      - name: Trivy config scan (SARIF) - ${{ matrix.target }}
+        uses: aquasecurity/trivy-action@b2933f565dbc598b29947660e66259e3c7bc8561
+        with:
+          scan-type: fs
+          scan-ref: ${{ matrix.target }}
+          scanners: config
+          format: sarif
+          output: artifacts/security/trivy-config-${{ matrix.target }}.sarif
+          skip-dirs: node_modules, vendor, .git, docs, tests, backups, logs, artifacts
+          skip-files: '**/*.md'
+          trivyignores: .trivyignore
+          exit-code: '1'
+
+      - name: Upload Trivy Config SARIF - ${{ matrix.target }}
+        if: always()
+        uses: github/codeql-action/upload-sarif@f94c9befffa4412c356fb5463a959ab7821dd57e
+        with:
+          sarif_file: artifacts/security/trivy-config-${{ matrix.target }}.sarif
+
+  scheduled-full-scan:
+    if: ${{ github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -49,17 +135,17 @@ jobs:
           name: sbom-spdx-json
           path: artifacts/security/sbom.spdx.json
 
-      - name: Trivy FS vulnerability scan (SARIF)
+      - name: Trivy FS vulnerability scan (SARIF) - full repo
         uses: aquasecurity/trivy-action@b2933f565dbc598b29947660e66259e3c7bc8561
         with:
           scan-type: fs
+          scan-ref: '.'
           scanners: vuln
           format: sarif
           output: artifacts/security/trivy-fs.sarif
           ignore-unfixed: true
           severity: HIGH,CRITICAL
-          skip-dirs: node_modules, vendor, .git, docs, tests
-          skip-files: '**/*.md'
+          trivyignores: .trivyignore
           exit-code: '1'
 
       - name: Upload Trivy FS SARIF
@@ -68,15 +154,15 @@ jobs:
         with:
           sarif_file: artifacts/security/trivy-fs.sarif
 
-      - name: Trivy config scan (SARIF)
+      - name: Trivy config scan (SARIF) - full repo
         uses: aquasecurity/trivy-action@b2933f565dbc598b29947660e66259e3c7bc8561
         with:
           scan-type: fs
+          scan-ref: '.'
           scanners: config
           format: sarif
           output: artifacts/security/trivy-config.sarif
-          skip-dirs: node_modules, vendor, .git, docs, tests
-          skip-files: '**/*.md'
+          trivyignores: .trivyignore
           exit-code: '1'
 
       - name: Upload Trivy Config SARIF
