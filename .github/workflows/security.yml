@@ -66,6 +66,7 @@ jobs:
           path: artifacts/security/sbom.spdx.json
 
       - name: Trivy FS vulnerability scan (SARIF) - ${{ matrix.target }}
+        if: ${{ hashFiles(format('{0}/**/*', matrix.target)) != '' }}
         uses: aquasecurity/trivy-action@b2933f565dbc598b29947660e66259e3c7bc8561
         with:
           scan-type: fs
@@ -88,6 +89,7 @@ jobs:
           sarif_file: artifacts/security/trivy-fs-${{ matrix.target }}.sarif
 
       - name: Trivy config scan (SARIF) - ${{ matrix.target }}
+        if: ${{ hashFiles(format('{0}/**/*', matrix.target)) != '' }}
         uses: aquasecurity/trivy-action@b2933f565dbc598b29947660e66259e3c7bc8561
         with:
           scan-type: fs
