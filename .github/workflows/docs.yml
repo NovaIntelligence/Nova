@@ -12,12 +12,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Placeholder docs build
+      - name: Generate docs index
+        shell: pwsh
         run: |
-          echo "Docs build placeholder. Replace with real build when ready." \
-            | tee docs-build.log
-      - name: Upload docs log
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path 'artifacts/docs' | Out-Null
+          $md = @()
+          if (Test-Path 'docs') { $md += Get-ChildItem -Recurse -Path 'docs' -Filter *.md -File }
+          $content = "# Documentation Index`n`n## README`n- [README](README.md)`n`n## Docs`n" + ($md | ForEach-Object { "- [$($_.FullName.Replace((Get-Location).Path + [System.IO.Path]::DirectorySeparatorChar, ''))]($($_.FullName.Replace((Get-Location).Path + [System.IO.Path]::DirectorySeparatorChar, '')) )" } | Out-String)
+          $content | Set-Content 'artifacts/docs/index.md'
+      - name: Upload docs artifact
         uses: actions/upload-artifact@v4
         with:
-          name: docs-build-log
-          path: docs-build.log
+          name: docs-index
+          path: artifacts/docs/*

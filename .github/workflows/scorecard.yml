@@ -9,11 +9,35 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Generate placeholder scorecard
+      - name: Compute simple quality metrics
+        shell: pwsh
         run: |
-          mkdir -p artifacts/scorecard
-          echo "Quality Scorecard placeholder. Replace with real checks later." > artifacts/scorecard/summary.txt
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path 'artifacts/scorecard' | Out-Null
+          $ps1 = Get-ChildItem -Recurse -Filter *.ps1 -File -ErrorAction SilentlyContinue
+          $tests = Get-ChildItem -Recurse -Path 'tests' -Filter *.ps1 -File -ErrorAction SilentlyContinue
+          $lintTargets = @('tools/skills','tests') | Where-Object { Test-Path $_ }
+          if (-not (Get-Module -ListAvailable -Name Pester)) { Install-Module Pester -Scope CurrentUser -Force -SkipPublisherCheck }
+          Import-Module Pester
+          $pester = Invoke-Pester -Path 'tests' -CI -PassThru -OutputFormat NUnitXml -OutputFile 'artifacts/scorecard/pester.xml'
+          $lint = @()
+          if ($lintTargets.Count -gt 0) {
+            if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer)) { Install-Module PSScriptAnalyzer -Scope CurrentUser -Force }
+            $lint = Invoke-ScriptAnalyzer -Path $lintTargets -Recurse -Severity Error -Settings '.config/pssa.settings.psd1'
+            $lint | ConvertTo-Json -Depth 6 | Set-Content 'artifacts/scorecard/lint.json'
+          }
+          $summary = @{
+            timestamp = (Get-Date).ToString('s')
+            ps1_files = $ps1.Count
+            test_files = $tests.Count
+            tests_passed = $pester.PassedCount
+            tests_failed = $pester.FailedCount
+            lint_errors = ($lint | Measure-Object).Count
+          } | ConvertTo-Json -Depth 4
+          $summary | Set-Content 'artifacts/scorecard/summary.json'
       - name: Upload scorecard
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: scorecard
