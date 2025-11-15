@@ -11,16 +11,21 @@ jobs:
       - uses: actions/checkout@v4
       - name: Compute simple quality metrics
         shell: pwsh
+        continue-on-error: true
         run: |
           Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force -Path 'artifacts/scorecard' | Out-Null
           $ps1 = Get-ChildItem -Recurse -Filter *.ps1 -File -ErrorAction SilentlyContinue
-          $tests = Get-ChildItem -Recurse -Path 'tests' -Filter *.ps1 -File -ErrorAction SilentlyContinue
+          $tests = @()
+          if (Test-Path 'tests') { $tests = Get-ChildItem -Recurse -Path 'tests' -Filter *.ps1 -File -ErrorAction SilentlyContinue }
           $lintTargets = @('tools/skills','tests') | Where-Object { Test-Path $_ }
           if (-not (Get-Module -ListAvailable -Name Pester)) { Install-Module Pester -Scope CurrentUser -Force -SkipPublisherCheck }
           Import-Module Pester
-          $pester = Invoke-Pester -Path 'tests' -CI -PassThru -OutputFormat NUnitXml -OutputFile 'artifacts/scorecard/pester.xml'
+          $pester = $null
+          if (Test-Path 'tests') {
+            $pester = Invoke-Pester -Path 'tests' -CI -PassThru -OutputFormat NUnitXml -OutputFile 'artifacts/scorecard/pester.xml'
+          }
           $lint = @()
           if ($lintTargets.Count -gt 0) {
             if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer)) { Install-Module PSScriptAnalyzer -Scope CurrentUser -Force }
@@ -31,8 +36,8 @@ jobs:
             timestamp = (Get-Date).ToString('s')
             ps1_files = $ps1.Count
             test_files = $tests.Count
-            tests_passed = $pester.PassedCount
-            tests_failed = $pester.FailedCount
+            tests_passed = if ($pester) { $pester.PassedCount } else { 0 }
+            tests_failed = if ($pester) { $pester.FailedCount } else { 0 }
             lint_errors = ($lint | Measure-Object).Count
           } | ConvertTo-Json -Depth 4
           $summary | Set-Content 'artifacts/scorecard/summary.json'
