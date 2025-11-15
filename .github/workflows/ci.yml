@@ -8,6 +8,13 @@ on:
   schedule:
     - cron: "0 7 * * 1"  # Weekly sanity (Mon 07:00 UTC)
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -31,7 +38,7 @@ jobs:
           Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
           # Limit lint scope to actively maintained scripts to avoid legacy noise
-          $paths = @('tools/skills', 'tests') | Where-Object { Test-Path $_ }
+          $paths = @('tools/skills', 'tests', 'modules') | Where-Object { Test-Path $_ }
           if (-not $paths -or $paths.Count -eq 0) {
             Write-Host "No lintable paths found; exiting successfully."
             exit 0

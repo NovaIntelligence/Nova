@@ -1,3 +1,4 @@
+[CmdletBinding()]
 param(
     [Parameter(Mandatory = $false)] [string] $OffersCsv = "samples/skills/sample-offers.csv",
     [Parameter(Mandatory = $false)] [string] $TemplatePath = "tools/skills/templates/sales-page.md",
@@ -5,6 +6,7 @@ param(
     [Parameter(Mandatory = $false)] [int] $MaxOffers = 50
 )
 
+Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 function New-OutputDir {
