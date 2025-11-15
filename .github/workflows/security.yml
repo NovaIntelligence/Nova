@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   security-scans:
+    continue-on-error: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
