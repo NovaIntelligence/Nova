@@ -2,6 +2,7 @@
 
 [![Skills Smoke](https://github.com/NovaIntelligence/Nova/actions/workflows/skills-smoke.yml/badge.svg)](https://github.com/NovaIntelligence/Nova/actions/workflows/skills-smoke.yml)
 [![Build Status](https://github.com/NovaIntelligence/Nova/actions/workflows/ci.yml/badge.svg)](https://github.com/NovaIntelligence/Nova/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/NovaIntelligence/Nova/actions/workflows/codeql.yml/badge.svg)](https://github.com/NovaIntelligence/Nova/actions/workflows/codeql.yml)
 [![Tests](https://github.com/NovaIntelligence/Nova/actions/workflows/pester.yml/badge.svg)](https://github.com/NovaIntelligence/Nova/actions/workflows/pester.yml) 
 [![Coverage](https://codecov.io/gh/NovaIntelligence/Nova/branch/master/graph/badge.svg)](https://codecov.io/gh/NovaIntelligence/Nova)
 [![Documentation](https://github.com/NovaIntelligence/Nova/actions/workflows/ci.yml/badge.svg?label=docs)](https://NovaIntelligence.github.io/Nova)

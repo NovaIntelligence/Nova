@@ -12,15 +12,40 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Lint
+      - name: Cache PowerShell modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/powershell/Modules
+          key: ${{ runner.os }}-psmodules-${{ hashFiles('.config/pssa.settings.psd1') }}
+      - name: Install PowerShell modules
+        shell: pwsh
         run: |
-          echo "No lint configuration yet; passing placeholder."
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+      - name: Run PSScriptAnalyzer
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+          # Limit lint scope to actively maintained scripts to avoid legacy noise
+          $paths = @('tools/skills', 'tests') | Where-Object { Test-Path $_ }
+          Invoke-ScriptAnalyzer -Path $paths -Recurse -Severity Error -Settings '.config/pssa.settings.psd1' -EnableExit
 
   tests:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, windows-2022]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Cache PowerShell modules
+        uses: actions/cache@v4
+        with:
+          path: ~\Documents\PowerShell\Modules
+          key: ${{ runner.os }}-psmodules-${{ hashFiles('**/*.ps1') }}
       - name: Run Pester smoke tests
         shell: pwsh
         run: |
@@ -37,7 +62,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Dotnet info (placeholder)
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Conditional dotnet build
+        shell: pwsh
         run: |
-          dotnet --info || true
-          echo "No .NET projects detected; placeholder build succeeded."
+          $sln = Get-ChildItem -Recurse -Filter *.sln -File -ErrorAction SilentlyContinue
+          $csproj = Get-ChildItem -Recurse -Filter *.csproj -File -ErrorAction SilentlyContinue
+          if ($sln -or $csproj) {
+            dotnet --info
+            if ($sln) { dotnet build $sln.FullName -c Release --nologo }
+            if (-not $sln -and $csproj) { dotnet build $csproj.FullName -c Release --nologo }
+          } else {
+            Write-Host "No .NET solutions or projects found; skipping build."
+          }
