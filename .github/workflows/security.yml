@@ -83,7 +83,8 @@ jobs:
           exit-code: '1'
 
       - name: Upload Trivy FS SARIF - ${{ matrix.target }}
-        if: always()
+        # Only try to upload if the target has files (mirrors scan step condition)
+        if: ${{ hashFiles(format('{0}/**/*', matrix.target)) != '' }}
         uses: github/codeql-action/upload-sarif@f94c9befffa4412c356fb5463a959ab7821dd57e
         with:
           sarif_file: artifacts/security/trivy-fs-${{ matrix.target }}.sarif
@@ -103,10 +104,32 @@ jobs:
           exit-code: '1'
 
       - name: Upload Trivy Config SARIF - ${{ matrix.target }}
-        if: always()
+        # Only try to upload if the target has files (mirrors scan step condition)
+        if: ${{ hashFiles(format('{0}/**/*', matrix.target)) != '' }}
         uses: github/codeql-action/upload-sarif@f94c9befffa4412c356fb5463a959ab7821dd57e
         with:
           sarif_file: artifacts/security/trivy-config-${{ matrix.target }}.sarif
+
+      - name: Trivy config policy check (OPA) - ${{ matrix.target }}
+        if: ${{ hashFiles(format('{0}/**/*', matrix.target)) != '' }}
+        continue-on-error: true
+        run: |
+          mkdir -p artifacts/security
+          trivy config "${{ matrix.target }}" \
+            --policy security/trivy/policies \
+            --namespaces appsec \
+            --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL \
+            --timeout 5m \
+            --exit-code 0 \
+            --format table \
+            > artifacts/security/trivy-policy-${{ matrix.target }}.txt
+      
+      - name: Upload Trivy policy report - ${{ matrix.target }}
+        if: always()
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
+        with:
+          name: trivy-policy-${{ matrix.target }}
+          path: artifacts/security/trivy-policy-${{ matrix.target }}.txt
 
   scheduled-full-scan:
     # Only run the full repo scan on the scheduled event
@@ -194,3 +217,23 @@ jobs:
         uses: github/codeql-action/upload-sarif@f94c9befffa4412c356fb5463a959ab7821dd57e
         with:
           sarif_file: artifacts/security/trivy-config.sarif
+
+      - name: Trivy config policy check (OPA) - full repo
+        continue-on-error: true
+        run: |
+          mkdir -p artifacts/security
+          trivy config . \
+            --policy security/trivy/policies \
+            --namespaces appsec \
+            --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL \
+            --timeout 10m \
+            --exit-code 0 \
+            --format table \
+            > artifacts/security/trivy-policy-full.txt
+
+      - name: Upload Trivy policy report (full)
+        if: always()
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
+        with:
+          name: trivy-policy-full
+          path: artifacts/security/trivy-policy-full.txt

@@ -1,0 +1,95 @@
+name: autonomy-gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  gate:
+    # Skip gate if kill-switch labels are present on the PR
+    if: ${{ !contains(toJson(github.event.pull_request.labels), 'autonomy:off') && !contains(toJson(github.event.pull_request.labels), 'autonomy:review') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Evaluate policy for autonomous changes
+        id: eval
+        shell: bash
+        env:
+          ACTOR: ${{ github.actor }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          echo "Actor: $ACTOR"
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" | tr '\n' ' ')
+          echo "Changed files: $CHANGED"
+
+          # Consider automation/bots as actors ending with [bot]
+          if [[ "$ACTOR" == *"[bot]"* ]]; then
+            echo "Detected bot actor; enforcing path allowlist."
+            # Allowlist globs (low-risk)
+            ALLOWED=(
+              'docs/**'
+              '**/*.md'
+              '.github/CODEOWNERS'
+              '.github/ISSUE_TEMPLATE/**'
+              '.github/workflows/**'
+              'security/gitleaks/**'
+              'security/trivy/policies/**'
+              '.trivyignore'
+              'assets/**'
+              '**/*.json'
+              '**/*.yaml'
+              '**/*.yml'
+            )
+
+            # Disallowed high-risk globs
+            DISALLOWED=(
+              'core/**' 'services/**' 'apps/**' 'platform/**' 'backend/**' 'src/**'
+              'auth/**' 'secrets/**' 'creds/**' 'env/**' 'ops/**' 'cloudrun/**' 'gcp/**' 'nova-stack/**'
+              '**/*.sh' '**/*.ps1' '**/*.py' '**/*.js' '**/*.ts'
+            )
+
+            violate=false
+            for f in $(git diff --name-only "$BASE_SHA" "$HEAD_SHA"); do
+              # If matches any disallowed, mark violation
+              for g in "${DISALLOWED[@]}"; do
+                if [[ $(/bin/bash -lc "compgen -G '$g' || true") ]]; then :; fi # warmup
+                if [[ "$f" == $g ]]; then
+                  violate=true
+                else
+                  case "$f" in $g) violate=true;; esac
+                fi
+              done
+              # If not in allowed set, also mark violation
+              in_allowed=false
+              for g in "${ALLOWED[@]}"; do
+                case "$f" in $g) in_allowed=true;; esac
+              done
+              if [[ "$in_allowed" == false ]]; then
+                violate=true
+              fi
+            done
+
+            if [[ "$violate" == true ]]; then
+              echo "::error::Autonomy gate: Out-of-policy changes detected for bot actor."
+              echo "::notice::Review docs/autonomy/POLICY.md and adjust or add human review."
+              exit 1
+            fi
+          else
+            echo "Human actor detected; autonomy gate informational only."
+          fi
+
+          echo "gate=passed" >> "$GITHUB_OUTPUT"
+
+      - name: Summarize
+        if: always()
+        run: |
+          echo "Gate result: ${{ steps.eval.outputs.gate }}"
