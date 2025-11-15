@@ -56,12 +56,13 @@ jobs:
           path: .
           format: spdx-json
           output-file: artifacts/security/sbom.spdx.json
+          upload-artifact: false
 
       - name: Upload SBOM artifact
         if: always()
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
         with:
-          name: sbom-spdx-json
+          name: sbom-spdx-json-${{ matrix.target }}
           path: artifacts/security/sbom.spdx.json
 
       - name: Trivy FS vulnerability scan (SARIF) - ${{ matrix.target }}
@@ -147,12 +148,13 @@ jobs:
           path: .
           format: spdx-json
           output-file: artifacts/security/sbom.spdx.json
+          upload-artifact: false
 
       - name: Upload SBOM artifact
         if: always()
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
         with:
-          name: sbom-spdx-json
+          name: sbom-spdx-json-full
           path: artifacts/security/sbom.spdx.json
 
       - name: Trivy FS vulnerability scan (SARIF) - full repo
