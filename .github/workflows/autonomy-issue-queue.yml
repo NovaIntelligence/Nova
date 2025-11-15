@@ -3,6 +3,12 @@ name: autonomy-issue-queue
 on:
   issues:
     types: [opened, labeled, reopened]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number to process"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -11,22 +17,59 @@ permissions:
 
 jobs:
   queue:
-    if: ${{ !contains(toJson(github.event.issue.labels), 'autonomy:off') && contains(toJson(github.event.issue.labels), 'autonomy:task') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
+      - name: Resolve issue metadata
+        id: meta
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            ISS_NUM="${{ inputs.issue_number }}"
+          else
+            ISS_NUM="${{ github.event.issue.number }}"
+          fi
+          echo "issue_number=$ISS_NUM" >> "$GITHUB_OUTPUT"
+          data=$(gh api repos/${{ github.repository }}/issues/$ISS_NUM)
+          title=$(echo "$data" | jq -r '.title')
+          labels=$(echo "$data" | jq -r '[.labels[].name] | join(",")')
+          echo "issue_title=$title" >> "$GITHUB_OUTPUT"
+          echo "labels=$labels" >> "$GITHUB_OUTPUT"
+          # Gate: skip if autonomy:off present
+          if echo "$labels" | grep -qi 'autonomy:off'; then
+            echo "::warning::autonomy:off present; skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Gate: require autonomy:task when event is issue
+          if [ "${{ github.event_name }}" = "issues" ]; then
+            if ! echo "$labels" | grep -qi 'autonomy:task'; then
+              echo "::warning::No autonomy:task label; skipping."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
       - name: Prepare branch and safe change
         id: prep
         shell: bash
         env:
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_NUMBER: ${{ steps.meta.outputs.issue_number }}
+          ISSUE_TITLE: ${{ steps.meta.outputs.issue_title }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           REPO: ${{ github.repository }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          if [ "${{ steps.meta.outputs.skip }}" = "true" ]; then
+            echo "Skipping prepare due to gate."
+            exit 0
+          fi
           set -euo pipefail
           BRANCH="autonomy/issue-${ISSUE_NUMBER}-$(date +%Y%m%d%H%M%S)"
           git config user.name "github-actions[bot]"
@@ -61,10 +104,11 @@ jobs:
           BRANCH: ${{ steps.prep.outputs.branch }}
           BASE: ${{ github.event.repository.default_branch }}
           REPO: ${{ github.repository }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_NUMBER: ${{ steps.meta.outputs.issue_number }}
+          ISSUE_TITLE: ${{ steps.meta.outputs.issue_title }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          if [ -z "$BRANCH" ]; then echo "No branch prepared (skip)."; exit 0; fi
           set -euo pipefail
           body=$(cat <<EOF
           Autonomy task for #${ISSUE_NUMBER}
@@ -102,7 +146,7 @@ jobs:
         shell: bash
         env:
           REPO: ${{ github.repository }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_NUMBER: ${{ steps.meta.outputs.issue_number }}
           PR_NUMBER: ${{ steps.pr.outputs.number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
