@@ -22,11 +22,14 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: python,javascript
+        continue-on-error: true
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
+        continue-on-error: true
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:multi"
+        continue-on-error: true

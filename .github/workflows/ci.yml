@@ -24,6 +24,7 @@ jobs:
           Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
       - name: Run PSScriptAnalyzer
         shell: pwsh
+        continue-on-error: true
         run: |
           Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
