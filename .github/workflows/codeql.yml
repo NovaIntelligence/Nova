@@ -1,0 +1,17 @@
+name: CodeQL
+
+on:
+  pull_request:
+    branches: [ "**" ]
+  push:
+    branches: [ "**" ]
+
+jobs:
+  Analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Placeholder analysis
+        run: |
+          echo "CodeQL placeholder job. Configure codeql-action in future."

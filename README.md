@@ -56,6 +56,54 @@ pwsh -File tools/skills/Outbound-Deal-Machine.ps1 -LeadsCsv "samples/skills/samp
 pwsh -File tools/skills/Self-Sufficiency-Model.ps1 -InfraMonthlyCost 200 -AvgDealValue 2500 -CloseRate 0.2 -MeetingsPerWeek 5
 ```
 
+- **Offer Architect v0.1:**
+
+```powershell
+pwsh -File tools/skills/Offer-Architect.ps1 -OffersCsv "samples/skills/sample-offers.csv" -OutDir "$env:TEMP\nova_offers_out"
+```
+
+- **Cold Caller with optional SMTP (safe-by-default):**
+
+```powershell
+# Dry-run (no email send, default)
+pwsh -File tools/skills/Outbound-Deal-Machine.ps1 -LeadsCsv "samples/skills/sample-leads.csv" -OutDir "$env:TEMP\nova_out"
+
+# Live send requires BOTH the flag and env gate
+$env:OUTBOUND_SEND_ENABLED = 'true'
+$env:SMTP_FROM = 'you@example.com'
+$env:SMTP_HOST = 'smtp.example.com'
+$env:SMTP_PORT = '587'
+$env:SMTP_USER = 'you@example.com'
+$env:SMTP_PASS = '<app_password_or_token>'
+$env:SMTP_USE_SSL = 'true'
+pwsh -File tools/skills/Outbound-Deal-Machine.ps1 -LeadsCsv "samples/skills/sample-leads.csv" -OutDir "$env:TEMP\nova_out" -SendViaSmtp
+```
+
+## 🧯 Backup & Restore
+
+Nova supports full offline backup via ZIP + git bundle + manifest + checksum.
+
+### Create Backup (example)
+```powershell
+$ts = Get-Date -Format 'yyyyMMdd_HHmmss'
+$backupRoot = 'D:\Nova_Backups'
+Compress-Archive -Path (Join-Path 'D:\Nova' '*') -DestinationPath (Join-Path $backupRoot "Nova_Repo_Backup_${ts}.zip") -Force
+git -C 'D:\Nova' bundle create (Join-Path $backupRoot "Nova_Repo_Backup_${ts}.bundle") --all
+Get-ChildItem -Path 'D:\Nova' -Recurse -File | Select FullName,Length,LastWriteTime | Format-Table -AutoSize | Out-String | Set-Content (Join-Path $backupRoot "Nova_Repo_Backup_${ts}.manifest.txt")
+Get-FileHash -Algorithm SHA256 (Join-Path $backupRoot "Nova_Repo_Backup_${ts}.zip") | ForEach-Object { "$($_.Hash)  $(Join-Path $backupRoot "Nova_Repo_Backup_${ts}.zip")" } | Set-Content (Join-Path $backupRoot "Nova_Repo_Backup_${ts}.sha256")
+```
+
+### Restore Backup
+```powershell
+pwsh -File tools/backup/Restore-From-Backup.ps1 \ 
+    -ZipPath 'D:\Nova_Backups\Nova_Repo_Backup_20251115_100811.zip' \ 
+    -BundlePath 'D:\Nova_Backups\Nova_Repo_Backup_20251115_100811.bundle' \ 
+    -ChecksumFile 'D:\Nova_Backups\Nova_Repo_Backup_20251115_100811.sha256' \ 
+    -VerifyChecksum -TargetDir 'D:\Nova_Restore' -Force
+```
+
+Result: working copy extracted + bundle clone (if needed) with full refs.
+
 ## 🏗️ **Architecture Overview**
 
 ```mermaid
