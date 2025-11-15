@@ -25,7 +25,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload Gitleaks SARIF to Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: artifacts/security/gitleaks.sarif
         continue-on-error: true
@@ -50,7 +50,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload Trivy SARIF to Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: artifacts/security/trivy.sarif
         continue-on-error: true
@@ -65,7 +65,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload Trivy Config SARIF to Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: artifacts/security/trivy-config.sarif
         continue-on-error: true
