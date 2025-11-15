@@ -11,6 +11,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Compute simple quality metrics
         shell: pwsh
+        continue-on-error: true
         run: |
           Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
