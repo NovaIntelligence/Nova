@@ -43,7 +43,7 @@ jobs:
           $summary | Set-Content 'artifacts/scorecard/summary.json'
       - name: Upload scorecard
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: scorecard
           path: artifacts/scorecard/*

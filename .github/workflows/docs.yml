@@ -23,7 +23,7 @@ jobs:
           $content = "# Documentation Index`n`n## README`n- [README](README.md)`n`n## Docs`n" + ($md | ForEach-Object { "- [$($_.FullName.Replace((Get-Location).Path + [System.IO.Path]::DirectorySeparatorChar, ''))]($($_.FullName.Replace((Get-Location).Path + [System.IO.Path]::DirectorySeparatorChar, '')) )" } | Out-String)
           $content | Set-Content 'artifacts/docs/index.md'
       - name: Upload docs artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: docs-index
           path: artifacts/docs/*
