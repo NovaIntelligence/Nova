@@ -11,7 +11,8 @@ permissions:
 
 jobs:
   pr-security:
-    if: ${{ github.event_name == 'pull_request' }}
+    # Allow running on pull_request and manual workflow_dispatch for on-demand PR scans
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -28,10 +29,19 @@ jobs:
         run: |
           mkdir -p artifacts/security
 
+      - name: Install Gitleaks
+        run: |
+          curl -sSL -o gitleaks.tgz https://github.com/gitleaks/gitleaks/releases/download/v8.12.0/gitleaks_8.12.0_linux_x64.tar.gz
+          tar -xzf gitleaks.tgz gitleaks
+          sudo mv gitleaks /usr/local/bin/gitleaks
+
       - name: Gitleaks (secrets scan)
-        uses: gitleaks/gitleaks-action@1f2d10fb689bc07a5f56f48d6db61f5bbbe772fa
-        with:
-          args: detect --source . --no-git --redact --report-format sarif --report-path artifacts/security/gitleaks.sarif --config-path security/gitleaks/gitleaks.toml
+        run: |
+          mkdir -p artifacts/security
+          gitleaks detect --source . --no-git --redact \
+            --report-format sarif \
+            --report-path artifacts/security/gitleaks.sarif \
+            --config-path security/gitleaks/gitleaks.toml
 
       - name: Upload Gitleaks SARIF
         if: always()
@@ -96,7 +106,8 @@ jobs:
           sarif_file: artifacts/security/trivy-config-${{ matrix.target }}.sarif
 
   scheduled-full-scan:
-    if: ${{ github.event_name != 'pull_request' }}
+    # Only run the full repo scan on the scheduled event
+    if: ${{ github.event_name == 'schedule' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -109,10 +120,19 @@ jobs:
         run: |
           mkdir -p artifacts/security
 
+      - name: Install Gitleaks
+        run: |
+          curl -sSL -o gitleaks.tgz https://github.com/gitleaks/gitleaks/releases/download/v8.12.0/gitleaks_8.12.0_linux_x64.tar.gz
+          tar -xzf gitleaks.tgz gitleaks
+          sudo mv gitleaks /usr/local/bin/gitleaks
+
       - name: Gitleaks (secrets scan)
-        uses: gitleaks/gitleaks-action@1f2d10fb689bc07a5f56f48d6db61f5bbbe772fa
-        with:
-          args: detect --source . --no-git --redact --report-format sarif --report-path artifacts/security/gitleaks.sarif --config-path security/gitleaks/gitleaks.toml
+        run: |
+          mkdir -p artifacts/security
+          gitleaks detect --source . --no-git --redact \
+            --report-format sarif \
+            --report-path artifacts/security/gitleaks.sarif \
+            --config-path security/gitleaks/gitleaks.toml
 
       - name: Upload Gitleaks SARIF
         if: always()
