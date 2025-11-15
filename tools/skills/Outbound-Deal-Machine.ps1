@@ -15,6 +15,18 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# SMTP Implementation Note:
+# This script supports both MailKit (recommended by Microsoft) and the legacy System.Net.Mail.SmtpClient.
+# It will attempt to use MailKit if available, otherwise falls back to SmtpClient.
+# 
+# To use MailKit (optional but recommended):
+# 1. Download MailKit and MimeKit NuGet packages
+# 2. Extract MailKit.dll and MimeKit.dll to tools/skills/lib/ directory
+# 3. The script will automatically detect and use them
+#
+# Without MailKit, the script uses System.Net.Mail.SmtpClient which is marked obsolete
+# but still functional for basic SMTP operations.
+
 function Assert-File($Path) { if (-not (Test-Path $Path)) { throw "Missing file: $Path" } }
 function New-CleanDir($Path) { if (-not (Test-Path $Path)) { New-Item -ItemType Directory -Path $Path | Out-Null } }
 
@@ -63,31 +75,80 @@ function Send-OutreachEmail {
     if (-not $Smtp.enabled -or -not $Smtp.allow_live) { return @{ sent = $false; reason = 'disabled_or_gate_off' } }
     if (-not ($Smtp.from -and $Smtp.host -and $Smtp.port)) { return @{ sent = $false; reason = 'incomplete_smtp_config' } }
 
-    $mail = New-Object System.Net.Mail.MailMessage
+    # Try to load MailKit if available (recommended by Microsoft as replacement for obsolete SmtpClient)
+    $useMailKit = $false
     try {
-        $mail.From = $Smtp.from
-        [void]$mail.To.Add("$ToName <$ToEmail>")
-        $mail.Subject = $Subject
-        $mail.Body = $Body
-        $mail.IsBodyHtml = $false
-
-        $client = New-Object System.Net.Mail.SmtpClient($Smtp.host, [int]$Smtp.port)
-        try {
-            $client.EnableSsl = [bool]$Smtp.ssl
-            if ($Smtp.user) {
-                $client.Credentials = New-Object System.Net.NetworkCredential($Smtp.user, $Smtp.pass)
-            } else {
-                $client.UseDefaultCredentials = $true
+        if (-not ([System.Management.Automation.PSTypeName]'MailKit.Net.Smtp.SmtpClient').Type) {
+            $mailKitPath = Join-Path $PSScriptRoot 'lib'
+            if (Test-Path $mailKitPath) {
+                $mailKitDll = Join-Path $mailKitPath 'MailKit.dll'
+                $mimeKitDll = Join-Path $mailKitPath 'MimeKit.dll'
+                if ((Test-Path $mailKitDll) -and (Test-Path $mimeKitDll)) {
+                    Add-Type -Path $mimeKitDll
+                    Add-Type -Path $mailKitDll
+                    $useMailKit = $true
+                }
             }
-            $client.Send($mail)
-            return @{ sent = $true }
-        } finally {
-            $client.Dispose()
+        } else {
+            $useMailKit = $true
         }
     } catch {
-        return @{ sent = $false; reason = ('' + $_.Exception.Message) }
-    } finally {
-        $mail.Dispose()
+        # MailKit not available, will fallback to System.Net.Mail.SmtpClient
+    }
+
+    if ($useMailKit) {
+        # Use MailKit (modern, recommended approach)
+        try {
+            $message = New-Object MimeKit.MimeMessage
+            $message.From.Add([MimeKit.MailboxAddress]::new($Smtp.from, $Smtp.from))
+            $message.To.Add([MimeKit.MailboxAddress]::new($ToName, $ToEmail))
+            $message.Subject = $Subject
+            $message.Body = New-Object MimeKit.TextPart("plain") -Property @{ Text = $Body }
+
+            $client = New-Object MailKit.Net.Smtp.SmtpClient
+            try {
+                $client.Connect($Smtp.host, [int]$Smtp.port, [MailKit.Security.SecureSocketOptions]::StartTlsWhenAvailable)
+                if ($Smtp.user) {
+                    $client.Authenticate($Smtp.user, $Smtp.pass)
+                }
+                $client.Send($message)
+                $client.Disconnect($true)
+                return @{ sent = $true; method = 'MailKit' }
+            } finally {
+                $client.Dispose()
+            }
+        } catch {
+            return @{ sent = $false; reason = ('' + $_.Exception.Message) }
+        }
+    } else {
+        # Fallback to System.Net.Mail.SmtpClient (obsolete but still functional)
+        # Note: Microsoft recommends MailKit for new development
+        $mail = New-Object System.Net.Mail.MailMessage
+        try {
+            $mail.From = $Smtp.from
+            [void]$mail.To.Add("$ToName <$ToEmail>")
+            $mail.Subject = $Subject
+            $mail.Body = $Body
+            $mail.IsBodyHtml = $false
+
+            $client = New-Object System.Net.Mail.SmtpClient($Smtp.host, [int]$Smtp.port)
+            try {
+                $client.EnableSsl = [bool]$Smtp.ssl
+                if ($Smtp.user) {
+                    $client.Credentials = New-Object System.Net.NetworkCredential($Smtp.user, $Smtp.pass)
+                } else {
+                    $client.UseDefaultCredentials = $true
+                }
+                $client.Send($mail)
+                return @{ sent = $true; method = 'SmtpClient' }
+            } finally {
+                $client.Dispose()
+            }
+        } catch {
+            return @{ sent = $false; reason = ('' + $_.Exception.Message) }
+        } finally {
+            $mail.Dispose()
+        }
     }
 }
 
