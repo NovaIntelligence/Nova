@@ -1,0 +1,35 @@
+name: Pester
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'tests/**'
+      - 'tools/**'
+
+jobs:
+  tests:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Pester
+        shell: pwsh
+        run: |
+          if (-not (Get-Module -ListAvailable -Name Pester)) {
+            Install-Module Pester -Scope CurrentUser -Force -SkipPublisherCheck
+          }
+      - name: Run Pester smoke tests
+        shell: pwsh
+        run: |
+          Import-Module Pester
+          New-Item -ItemType Directory -Force -Path 'artifacts/pester' | Out-Null
+          $result = Invoke-Pester -Path 'tests/Skills.Smoke.Tests.ps1' -CI -OutputFormat NUnitXml -OutputFile 'artifacts/pester/results.xml' -PassThru
+          if ($null -ne $result.CodeCoverage) {
+            $result.CodeCoverage | ConvertTo-Json -Depth 6 | Set-Content 'artifacts/pester/coverage.json'
+          }
+      - name: Upload Pester artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pester-artifacts
+          path: artifacts/pester/*

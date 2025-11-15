@@ -1,0 +1,20 @@
+name: scorecard
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  scorecard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate placeholder scorecard
+        run: |
+          mkdir -p artifacts/scorecard
+          echo "Quality Scorecard placeholder. Replace with real checks later." > artifacts/scorecard/summary.txt
+      - name: Upload scorecard
+        uses: actions/upload-artifact@v4
+        with:
+          name: scorecard
+          path: artifacts/scorecard/*

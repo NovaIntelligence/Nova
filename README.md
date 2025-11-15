@@ -3,10 +3,9 @@
 [![Skills Smoke](https://github.com/NovaIntelligence/Nova/actions/workflows/skills-smoke.yml/badge.svg)](https://github.com/NovaIntelligence/Nova/actions/workflows/skills-smoke.yml)
 [![Build Status](https://github.com/NovaIntelligence/Nova/actions/workflows/ci.yml/badge.svg)](https://github.com/NovaIntelligence/Nova/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/NovaIntelligence/Nova/actions/workflows/codeql.yml/badge.svg)](https://github.com/NovaIntelligence/Nova/actions/workflows/codeql.yml)
-[![Tests](https://github.com/NovaIntelligence/Nova/actions/workflows/pester.yml/badge.svg)](https://github.com/NovaIntelligence/Nova/actions/workflows/pester.yml) 
-[![Coverage](https://codecov.io/gh/NovaIntelligence/Nova/branch/master/graph/badge.svg)](https://codecov.io/gh/NovaIntelligence/Nova)
-[![Documentation](https://github.com/NovaIntelligence/Nova/actions/workflows/ci.yml/badge.svg?label=docs)](https://NovaIntelligence.github.io/Nova)
-[![Security](https://github.com/NovaIntelligence/Nova/actions/workflows/ci.yml/badge.svg?label=security)](https://github.com/NovaIntelligence/Nova/security)
+[![Tests](https://github.com/NovaIntelligence/Nova/actions/workflows/pester.yml/badge.svg)](https://github.com/NovaIntelligence/Nova/actions/workflows/pester.yml)
+[![Documentation](https://github.com/NovaIntelligence/Nova/actions/workflows/docs.yml/badge.svg)](https://github.com/NovaIntelligence/Nova/actions/workflows/docs.yml)
+[![Security](https://github.com/NovaIntelligence/Nova/actions/workflows/security.yml/badge.svg)](https://github.com/NovaIntelligence/Nova/actions/workflows/security.yml)
 [![Quality Scorecard](https://github.com/NovaIntelligence/Nova/actions/workflows/scorecard.yml/badge.svg)](https://github.com/NovaIntelligence/Nova/actions/workflows/scorecard.yml)
 [![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue.svg)](https://github.com/PowerShell/PowerShell)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -808,5 +807,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 *Building the future of autonomous automation, one PowerShell script at a time.*
 
 [📋 Brand Assets Usage & Attribution](assets/brand/LICENSE.md) | [📖 Full Documentation](https://NovaIntelligence.github.io/Nova/)
+
+## 🗺️ Roadmap
+
+- Lint hardening: PSScriptAnalyzer is now blocking in CI; we will tune rules as new code lands.
+- Coverage signal: CI publishes Pester results and coverage artifacts; external coverage badges may be added later.
+- Docs/Scorecard/Security: Workflows exist as placeholders and will be wired to real builders/scanners incrementally.
+- Governance: The metrics gate enforces JSON on critical paths. See `governance/metrics/sample-governance-metrics.json`.
 
 </div>
