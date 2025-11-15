@@ -1,0 +1,8 @@
+# Trivy ignore file
+# Add noisy or irrelevant vulnerability IDs here to suppress them from scans.
+# Each line can be a vulnerability ID (e.g., CVE-2023-12345) or a wildcard.
+# Keep this list tight and justify each entry in commit messages.
+
+# Examples (commented):
+# CVE-2020-12345   # dev-only transitive dependency, not shipped
+# GHSA-xxxx-xxxx   # false positive in example code under docs/

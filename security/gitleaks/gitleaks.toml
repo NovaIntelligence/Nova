@@ -1,0 +1,37 @@
+title = "Nova Gitleaks"
+
+# Keep a simple generic rule for undocumented tokens
+[[rules]]
+id = "generic-api-key"
+pattern = "(?i)(api|token|secret|key)[\s:]*[A-Za-z0-9_\-]{16,}"
+tags = ["key", "api", "generic"]
+
+[allowlist]
+description = "Reduce false positives from docs/tests/examples and generated content"
+paths = [
+  "artifacts/",
+  "backups/",
+  "logs/",
+  "Nova_Backups/",
+  "docs/",
+  "README.md",
+  "readme.md",
+  "CHANGELOG.md",
+  "**/examples/",
+  "**/example/",
+  "**/samples/",
+  "**/sample/",
+  "**/fixtures/",
+  "**/testdata/",
+  "**/tests/",
+  "**/.venv/",
+  "**/node_modules/",
+  "**/dist/",
+  "**/build/",
+  "**/.git/"
+]
+regexes = [
+  "(?i)dummy|example|sample|placeholder|changeme|notarealsecret|abcdef123456",
+  # Use obviously non-matching placeholders to avoid triggering push protection
+  "(?i)ghp_example|xoxb-EXAMPLE-TOKEN-NOT-REAL|sk_live_EXAMPLE"
+]

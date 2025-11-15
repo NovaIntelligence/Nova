@@ -1,7 +1,14 @@
 # Code owners for critical areas
 
+# Default owner for everything
+*                        @NovaIntelligence/security-team @NovaIntelligence
+
 # Skills and governance require owner review
-tools/skills/**           @NovaIntelligence
-governance/**             @NovaIntelligence
-.github/workflows/**      @NovaIntelligence
-scripts/**                @NovaIntelligence
+tools/skills/**          @NovaIntelligence
+governance/**            @NovaIntelligence
+.github/workflows/**     @NovaIntelligence
+scripts/**               @NovaIntelligence
+
+# Security-related files
+SECURITY.md              @NovaIntelligence/security-team @NovaIntelligence
+security/**              @NovaIntelligence/security-team @NovaIntelligence
