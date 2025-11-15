@@ -12,6 +12,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Cache PowerShell modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/powershell/Modules
+          key: ${{ runner.os }}-psmodules-${{ hashFiles('.config/pssa.settings.psd1') }}
       - name: Install PowerShell modules
         shell: pwsh
         run: |
@@ -23,13 +28,22 @@ jobs:
           Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
           $paths = @('.', 'tools', 'scripts', 'tests') | Where-Object { Test-Path $_ }
-          Invoke-ScriptAnalyzer -Path $paths -Recurse -Severity Error -EnableExit
+          Invoke-ScriptAnalyzer -Path $paths -Recurse -Severity Error -Settings '.config/pssa.settings.psd1' -EnableExit
 
   tests:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, windows-2022]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Cache PowerShell modules
+        uses: actions/cache@v4
+        with:
+          path: ~\Documents\PowerShell\Modules
+          key: ${{ runner.os }}-psmodules-${{ hashFiles('**/*.ps1') }}
       - name: Run Pester smoke tests
         shell: pwsh
         run: |

@@ -1,0 +1,5 @@
+@{
+    Severity = @('Error')
+    IncludeRules = @()
+    ExcludeRules = @()
+}

@@ -1,0 +1,37 @@
+{
+  "slo": {
+    "availability": "99.5%",
+    "latency_p95_ms": 500,
+    "error_budget": "1.5% monthly"
+  },
+  "sla": {
+    "response_time_business_hours": "4h",
+    "resolution_time_standard": "3d"
+  },
+  "cpo": {
+    "unit": "USD/1000 ops",
+    "estimate": 0.45,
+    "assumptions": ["current infra", "2x burst capacity"]
+  },
+  "cac": {
+    "included": false,
+    "notes": "Not applicable for infra-only change"
+  },
+  "proof": {
+    "metric": "error rate",
+    "baseline": 0.02,
+    "target": 0.015,
+    "rollup_window": "7d"
+  },
+  "rollout_plan": {
+    "stages": [
+      { "stage": "canary", "traffic": "10%", "exit": "no regressions 24h" },
+      { "stage": "ramp", "traffic": "50%", "exit": "SLOs hold 48h" },
+      { "stage": "full", "traffic": "100%", "exit": "no alerts 72h" }
+    ],
+    "rollback_criteria": [
+      "error rate > baseline + 0.5%",
+      "latency p95 > 750ms"
+    ]
+  }
+}
