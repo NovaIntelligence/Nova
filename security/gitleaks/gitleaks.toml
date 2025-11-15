@@ -3,7 +3,7 @@ title = "Nova Gitleaks"
 # Keep a simple generic rule for undocumented tokens
 [[rules]]
 id = "generic-api-key"
-pattern = "(?i)(api|token|secret|key)[\s:]*[A-Za-z0-9_\-]{16,}"
+pattern = "(?i)(api|token|secret|key)[\\s:]*[A-Za-z0-9_\\-]{16,}"
 tags = ["key", "api", "generic"]
 
 [allowlist]
