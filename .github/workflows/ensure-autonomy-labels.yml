@@ -1,0 +1,51 @@
+name: ensure-autonomy-labels
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 5 * * 1'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  ensure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure labels via API
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          create_or_update() {
+            local name="$1"; local color="$2"; local desc="$3"
+            # Try create
+            code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              https://api.github.com/repos/$REPO/labels \
+              -d "{\"name\":\"$name\",\"color\":\"$color\",\"description\":\"$desc\"}")
+            if [[ "$code" == "201" ]]; then
+              echo "Created label $name"
+              return
+            fi
+            # Fallback to PATCH update
+            enc_name=$(python3 - <<'P'
+import sys, urllib.parse
+print(urllib.parse.quote(sys.argv[1]))
+P
+"$name")
+            curl -sS -X PATCH \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              https://api.github.com/repos/$REPO/labels/$enc_name \
+              -d "{\"new_name\":\"$name\",\"color\":\"$color\",\"description\":\"$desc\"}" >/dev/null
+            echo "Updated label $name"
+          }
+
+          create_or_update 'autonomy:off'    '8b0000' 'Kill switch: disable autonomous actions'
+          create_or_update 'autonomy:review' 'f9c513' 'Pause autonomy: require human review before merge'
+          create_or_update 'autonomy:task'   '0e8a16' 'Queued for autonomous processing'

@@ -1,0 +1,114 @@
+name: autonomy-issue-queue
+
+on:
+  issues:
+    types: [opened, labeled, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  queue:
+    if: ${{ !contains(toJson(github.event.issue.labels), 'autonomy:off') && contains(toJson(github.event.issue.labels), 'autonomy:task') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Prepare branch and safe change
+        id: prep
+        shell: bash
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          REPO: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          BRANCH="autonomy/issue-${ISSUE_NUMBER}-$(date +%Y%m%d%H%M%S)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "$DEFAULT_BRANCH" --depth=1
+          git checkout -b "$BRANCH" "origin/$DEFAULT_BRANCH"
+
+          mkdir -p docs/autonomy/queue
+          FILE="docs/autonomy/queue/ISSUE-${ISSUE_NUMBER}.md"
+          {
+            echo "# Autonomy Task #${ISSUE_NUMBER}"
+            echo
+            echo "Source issue: https://github.com/${REPO}/issues/${ISSUE_NUMBER}"
+            echo "Title: ${ISSUE_TITLE}"
+            echo "Created: $(date -u +%FT%TZ)"
+            echo
+            echo "This file is a placeholder change within allowed paths to enable PR creation and policy checks."
+          } > "$FILE"
+
+          git add "$FILE"
+          git commit -m "autonomy: scaffold PR for issue #${ISSUE_NUMBER} (docs-only placeholder)"
+
+          # Push with token
+          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO}.git" "$BRANCH"
+
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Open pull request
+        id: pr
+        shell: bash
+        env:
+          BRANCH: ${{ steps.prep.outputs.branch }}
+          BASE: ${{ github.event.repository.default_branch }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          body=$(cat <<EOF
+          Autonomy task for #${ISSUE_NUMBER}
+
+          This PR was created by the autonomy issue queue workflow.
+          Scope: docs-only placeholder under allowed paths per docs/autonomy/POLICY.md.
+          EOF
+          )
+          resp=$(curl -sS -X POST \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -d "{\"title\":\"Autonomy: ${ISSUE_TITLE}\",\"head\":\"${BRANCH}\",\"base\":\"${BASE}\",\"body\":\"${body//\n/\\n}\"}" \
+            "https://api.github.com/repos/${REPO}/pulls")
+          pr_number=$(python3 -c "import sys,json; print(json.load(sys.stdin).get('number',''))" <<<"$resp")
+          if [[ -z "$pr_number" ]]; then echo "Failed to create PR: $resp"; exit 1; fi
+          echo "number=$pr_number" >> "$GITHUB_OUTPUT"
+
+      - name: Label the PR
+        if: always()
+        shell: bash
+        env:
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          curl -sS -X POST \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -d '{"labels":["autonomy:task"]}' \
+            "https://api.github.com/repos/${REPO}/issues/${PR_NUMBER}/labels"
+
+      - name: Comment on source issue
+        if: always()
+        shell: bash
+        env:
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          curl -sS -X POST \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -d "{\"body\":\"Created PR #${PR_NUMBER} from autonomy queue.\"}" \
+            "https://api.github.com/repos/${REPO}/issues/${ISSUE_NUMBER}/comments"
