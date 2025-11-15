@@ -1,0 +1,6 @@
+# Minimal syft config placeholder
+exclude:
+  - "artifacts/**"
+  - "Nova_Backups/**"
+output:
+  - format: "spdx-json"

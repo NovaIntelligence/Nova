@@ -1,0 +1,14 @@
+title = "Nova Gitleaks"
+
+[[rules]]
+id = "generic-api-key"
+pattern = "(?i)(api|token|secret|key)[\s:]*[A-Za-z0-9_\-]{16,}"
+tags = ["key", "api", "generic"]
+
+[allowlist]
+paths = [
+  "artifacts/",
+  "backups/",
+  "logs/",
+  "Nova_Backups/"
+]
