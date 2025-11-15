@@ -8,6 +8,13 @@ on:
   schedule:
     - cron: "0 8 * * 1"  # Weekly CodeQL (Mon 08:00 UTC)
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   Analyze:
     name: Analyze
@@ -15,7 +22,6 @@ jobs:
       contents: read
       security-events: write
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -24,14 +30,11 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: python,javascript
-        continue-on-error: true
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
-        continue-on-error: true
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:multi"
-        continue-on-error: true

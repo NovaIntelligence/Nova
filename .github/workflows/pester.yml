@@ -1,11 +1,7 @@
-name: Pester
+name: Pester (manual)
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - 'tests/**'
-      - 'tools/**'
 
 jobs:
   tests:
