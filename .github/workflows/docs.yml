@@ -18,7 +18,7 @@ jobs:
   build-docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Generate docs index
         shell: pwsh
         run: |
@@ -30,7 +30,7 @@ jobs:
           $content = "# Documentation Index`n`n## README`n- [README](README.md)`n`n## Docs`n" + ($md | ForEach-Object { "- [$($_.FullName.Replace((Get-Location).Path + [System.IO.Path]::DirectorySeparatorChar, ''))]($($_.FullName.Replace((Get-Location).Path + [System.IO.Path]::DirectorySeparatorChar, '')) )" } | Out-String)
           $content | Set-Content 'artifacts/docs/index.md'
       - name: Upload docs artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
         with:
           name: docs-index
           path: artifacts/docs/*

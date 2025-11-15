@@ -7,7 +7,7 @@ jobs:
   tests:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Install Pester
         shell: pwsh
         run: |
@@ -25,7 +25,7 @@ jobs:
           }
       - name: Upload Pester artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
         with:
           name: pester-artifacts
           path: artifacts/pester/*

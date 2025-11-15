@@ -18,27 +18,27 @@ jobs:
       security-events: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Prepare artifacts dir
         run: |
           mkdir -p artifacts/security
 
       - name: Gitleaks (secrets scan)
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@1f2d10fb689bc07a5f56f48d6db61f5bbbe772fa
         continue-on-error: ${{ github.event_name == 'pull_request' }}
         with:
           args: detect --source . --no-git --redact --report-format sarif --report-path artifacts/security/gitleaks.sarif --config-path security/gitleaks/gitleaks.toml
 
       - name: Upload Gitleaks SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@f94c9befffa4412c356fb5463a959ab7821dd57e
         with:
           sarif_file: artifacts/security/gitleaks.sarif
 
       - name: Syft SBOM (SPDX-JSON)
         continue-on-error: true
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@e8d2a6937ecead383dfe75190d104edd1f9c5751
         with:
           path: .
           format: spdx-json
@@ -46,13 +46,13 @@ jobs:
 
       - name: Upload SBOM artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
         with:
           name: sbom-spdx-json
           path: artifacts/security/sbom.spdx.json
 
       - name: Trivy FS vulnerability scan (SARIF)
-        uses: aquasecurity/trivy-action@0.20.0
+        uses: aquasecurity/trivy-action@b2933f565dbc598b29947660e66259e3c7bc8561
         continue-on-error: ${{ github.event_name == 'pull_request' }}
         with:
           scan-type: fs
@@ -65,12 +65,12 @@ jobs:
 
       - name: Upload Trivy FS SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@f94c9befffa4412c356fb5463a959ab7821dd57e
         with:
           sarif_file: artifacts/security/trivy-fs.sarif
 
       - name: Trivy config scan (SARIF)
-        uses: aquasecurity/trivy-action@0.20.0
+        uses: aquasecurity/trivy-action@b2933f565dbc598b29947660e66259e3c7bc8561
         continue-on-error: ${{ github.event_name == 'pull_request' }}
         with:
           scan-type: fs
@@ -81,6 +81,6 @@ jobs:
 
       - name: Upload Trivy Config SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@f94c9befffa4412c356fb5463a959ab7821dd57e
         with:
           sarif_file: artifacts/security/trivy-config.sarif
