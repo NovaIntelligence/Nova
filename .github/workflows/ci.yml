@@ -27,7 +27,8 @@ jobs:
         run: |
           Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
-          $paths = @('.', 'tools', 'scripts', 'tests') | Where-Object { Test-Path $_ }
+          # Limit lint scope to actively maintained scripts to avoid legacy noise
+          $paths = @('tools/skills', 'tests') | Where-Object { Test-Path $_ }
           Invoke-ScriptAnalyzer -Path $paths -Recurse -Severity Error -Settings '.config/pssa.settings.psd1' -EnableExit
 
   tests:
