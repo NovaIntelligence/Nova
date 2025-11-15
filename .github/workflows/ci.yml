@@ -4,7 +4,9 @@ on:
   pull_request:
     branches: [ "**" ]
   push:
-    branches: [ "**" ]
+    branches: [ "main", "develop", "release/**" ]
+  schedule:
+    - cron: "0 7 * * 1"  # Weekly sanity (Mon 07:00 UTC)
 
 jobs:
   lint:
@@ -24,13 +26,31 @@ jobs:
           Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
       - name: Run PSScriptAnalyzer
         shell: pwsh
-        continue-on-error: true
         run: |
           Set-StrictMode -Version Latest
           $ErrorActionPreference = 'Stop'
           # Limit lint scope to actively maintained scripts to avoid legacy noise
           $paths = @('tools/skills', 'tests') | Where-Object { Test-Path $_ }
-          Invoke-ScriptAnalyzer -Path $paths -Recurse -Severity Error -Settings '.config/pssa.settings.psd1' -EnableExit
+          if (-not $paths -or $paths.Count -eq 0) {
+            Write-Host "No lintable paths found; exiting successfully."
+            exit 0
+          }
+          New-Item -ItemType Directory -Force -Path 'artifacts/lint' | Out-Null
+          $result = Invoke-ScriptAnalyzer -Path $paths -Recurse -Severity Error -Settings '.config/pssa.settings.psd1'
+          $result | ConvertTo-Json -Depth 6 | Set-Content 'artifacts/lint/report.json'
+          $result | Format-Table -AutoSize | Out-String | Set-Content 'artifacts/lint/report.txt'
+          if ($null -ne $result -and $result.Count -gt 0) {
+            Write-Error "PSScriptAnalyzer found $($result.Count) error-level issues."
+            exit 1
+          }
+          Write-Host "PSScriptAnalyzer reported no error-level diagnostics."
+
+      - name: Upload lint reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-reports
+          path: artifacts/lint/*
 
   tests:
     strategy:
@@ -55,7 +75,23 @@ jobs:
             Install-Module Pester -Scope CurrentUser -Force -SkipPublisherCheck
           }
           Import-Module Pester
-          Invoke-Pester -Path 'tests/Skills.Smoke.Tests.ps1' -CI -Output Detailed
+          New-Item -ItemType Directory -Force -Path 'artifacts/test' | Out-Null
+          $coverageTargets = @()
+          if (Test-Path 'tools/skills') { $coverageTargets += 'tools/skills' }
+          if (Test-Path 'modules') { $coverageTargets += 'modules' }
+          $invokeParams = @{ Path = 'tests'; CI = $true; OutputFormat = 'NUnitXml'; OutputFile = 'artifacts/test/results.xml' }
+          if ($coverageTargets.Count -gt 0) { $invokeParams['CodeCoverage'] = $coverageTargets }
+          $result = Invoke-Pester @invokeParams -PassThru
+          if ($null -ne $result.CodeCoverage) {
+            $result.CodeCoverage | ConvertTo-Json -Depth 6 | Set-Content 'artifacts/test/coverage.json'
+          }
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pester-results-${{ matrix.os }}
+          path: artifacts/test/*
 
   dotnet-build:
     runs-on: ubuntu-latest

@@ -4,7 +4,9 @@ on:
   pull_request:
     branches: [ "**" ]
   push:
-    branches: [ "**" ]
+    branches: [ "main", "develop", "release/**" ]
+  schedule:
+    - cron: "0 8 * * 1"  # Weekly CodeQL (Mon 08:00 UTC)
 
 jobs:
   Analyze:
