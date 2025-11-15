@@ -41,7 +41,7 @@ jobs:
           gitleaks detect --source . --no-git --redact \
             --report-format sarif \
             --report-path artifacts/security/gitleaks.sarif \
-            --config-path security/gitleaks/gitleaks.toml
+            --config security/gitleaks/gitleaks.toml
 
       - name: Upload Gitleaks SARIF
         if: always()
@@ -132,7 +132,7 @@ jobs:
           gitleaks detect --source . --no-git --redact \
             --report-format sarif \
             --report-path artifacts/security/gitleaks.sarif \
-            --config-path security/gitleaks/gitleaks.toml
+            --config security/gitleaks/gitleaks.toml
 
       - name: Upload Gitleaks SARIF
         if: always()
