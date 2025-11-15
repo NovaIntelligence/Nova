@@ -1,0 +1,5 @@
+# Exclude DLL files - users should install them locally
+*.dll
+
+# Keep the README
+!README.md

@@ -79,6 +79,14 @@ $env:SMTP_USE_SSL = 'true'
 pwsh -File tools/skills/Outbound-Deal-Machine.ps1 -LeadsCsv "samples/skills/sample-leads.csv" -OutDir "$env:TEMP\nova_out" -SendViaSmtp
 ```
 
+**SMTP Implementation:** The script uses MailKit (recommended by Microsoft) if available, otherwise falls back to `System.Net.Mail.SmtpClient`. To use MailKit for improved security and modern authentication:
+
+```powershell
+# Install MailKit and copy DLLs to tools/skills/lib/
+Install-Package MailKit -Source nuget.org -Scope CurrentUser -Force
+# See tools/skills/lib/README.md for detailed setup instructions
+```
+
 ## 🧯 Backup & Restore
 
 Nova supports full offline backup via ZIP + git bundle + manifest + checksum.
