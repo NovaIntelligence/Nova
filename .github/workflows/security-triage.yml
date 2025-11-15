@@ -1,0 +1,59 @@
+name: security-triage
+
+on:
+  workflow_run:
+    workflows: ["security", "CodeQL"]
+    types: ["completed"]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  open-triage-issue:
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'failure' &&
+          github.event.workflow_run.event != 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create or update triage issue
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            const wfName = run.name || context.workflow;
+            const headBranch = run.head_branch;
+            const runUrl = run.html_url;
+            const runId = run.id;
+            const title = `Security triage: ${wfName} failure on ${headBranch}`;
+
+            const body = 'Security workflow ' + wfName + ' failed on branch ' + headBranch + '.\\n' +
+                          'Run: ' + runUrl + '\\n' +
+                          'Conclusion: ' + run.conclusion + '\\n\\n' +
+                          'Follow the steps in docs/security/SECURITY_TRIAGE.md to triage and remediate. Add relevant labels (security:secret, security:vuln, security:config) based on findings.';
+
+            // Try to find an existing open issue with same title
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'security:triage'
+            });
+
+            let existing = issues.find(i => i.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: `New failing run: ${runUrl}`
+              });
+            } else {
+              const created = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['security:triage']
+              });
+            }

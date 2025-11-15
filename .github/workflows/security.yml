@@ -1,78 +1,86 @@
 name: security
 
 on:
-  workflow_dispatch:
   pull_request:
+  schedule:
+    - cron: "0 6 * * 1"  # Weekly security scans (Mon 06:00 UTC)
+  workflow_dispatch:
 
 permissions:
   contents: read
-  security-events: write
 
 jobs:
   security-scans:
+    continue-on-error: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-      - name: Prepare artifacts directory
+      - name: Prepare artifacts dir
         run: |
           mkdir -p artifacts/security
 
-      - name: Run Gitleaks (secrets scan)
-        uses: gitleaks/gitleaks-action@v2
+      - name: Gitleaks (secrets scan)
+        uses: gitleaks/gitleaks-action@1f2d10fb689bc07a5f56f48d6db61f5bbbe772fa
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         with:
           args: detect --source . --no-git --redact --report-format sarif --report-path artifacts/security/gitleaks.sarif --config-path security/gitleaks/gitleaks.toml
-        continue-on-error: true
 
-      - name: Upload Gitleaks SARIF to Security tab
-        uses: github/codeql-action/upload-sarif@v3
+      - name: Upload Gitleaks SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@f94c9befffa4412c356fb5463a959ab7821dd57e
         with:
           sarif_file: artifacts/security/gitleaks.sarif
-        continue-on-error: true
 
-      - name: Generate SBOM (Syft)
-        uses: anchore/sbom-action@v0
+      - name: Syft SBOM (SPDX-JSON)
+        continue-on-error: true
+        uses: anchore/sbom-action@e8d2a6937ecead383dfe75190d104edd1f9c5751
         with:
           path: .
           format: spdx-json
           output-file: artifacts/security/sbom.spdx.json
-        continue-on-error: true
 
-      - name: Run Trivy (filesystem scan)
-        uses: aquasecurity/trivy-action@0.20.0
+      - name: Upload SBOM artifact
+        if: always()
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
+        with:
+          name: sbom-spdx-json
+          path: artifacts/security/sbom.spdx.json
+
+      - name: Trivy FS vulnerability scan (SARIF)
+        uses: aquasecurity/trivy-action@b2933f565dbc598b29947660e66259e3c7bc8561
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         with:
           scan-type: fs
+          scanners: vuln
           format: sarif
-          output: artifacts/security/trivy.sarif
-          severity: HIGH,CRITICAL
-          vuln-type: 'os,library'
+          output: artifacts/security/trivy-fs.sarif
           ignore-unfixed: true
-        continue-on-error: true
+          severity: HIGH,CRITICAL
+          exit-code: '1'
 
-      - name: Upload Trivy SARIF to Security tab
-        uses: github/codeql-action/upload-sarif@v3
+      - name: Upload Trivy FS SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@f94c9befffa4412c356fb5463a959ab7821dd57e
         with:
-          sarif_file: artifacts/security/trivy.sarif
-        continue-on-error: true
+          sarif_file: artifacts/security/trivy-fs.sarif
 
-      - name: Trivy config scan (misconfigurations)
-        uses: aquasecurity/trivy-action@0.20.0
+      - name: Trivy config scan (SARIF)
+        uses: aquasecurity/trivy-action@b2933f565dbc598b29947660e66259e3c7bc8561
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         with:
-          scan-type: config
+          scan-type: fs
+          scanners: config
           format: sarif
           output: artifacts/security/trivy-config.sarif
-          severity: HIGH,CRITICAL
-        continue-on-error: true
+          exit-code: '1'
 
-      - name: Upload Trivy Config SARIF to Security tab
-        uses: github/codeql-action/upload-sarif@v3
+      - name: Upload Trivy Config SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@f94c9befffa4412c356fb5463a959ab7821dd57e
         with:
           sarif_file: artifacts/security/trivy-config.sarif
-        continue-on-error: true
-
-      - name: Upload security artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: security-artifacts
-          path: artifacts/security/*

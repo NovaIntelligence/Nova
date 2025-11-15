@@ -1,0 +1,34 @@
+{
+  "slo": {
+    "availability": "99.9%",
+    "latency_ms_p95": 500,
+    "error_budget_monthly": "0.1%"
+  },
+  "sla": {
+    "response_time_business_hours": "< 4h",
+    "incident_comm": "< 30m initial, hourly updates"
+  },
+  "cpo": {
+    "description": "Estimated cost per automated operation (compute + storage + API calls)",
+    "value_usd": 0.002
+  },
+  "cac": {
+    "notes": "If applicable for this change: user acquisition cost impacts",
+    "value_usd": null
+  },
+  "proof": {
+    "kpis": [
+      ">= 10 successful runs with zero critical errors",
+      ">= 95% task success rate on representative dataset",
+      "Security workflow green across Gitleaks + Trivy"
+    ]
+  },
+  "rollout_plan": {
+    "stages": [
+      "Dev: run on sample data only",
+      "Beta: limited customers/tenants, manual approval",
+      "GA: enable by default after two consecutive green weeks"
+    ],
+    "rollback": "Feature flag off; revert to previous release; document postmortem within 24h"
+  }
+}
