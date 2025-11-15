@@ -125,7 +125,7 @@ jobs:
             > artifacts/security/trivy-policy-${{ matrix.target }}.txt
       
       - name: Upload Trivy policy report - ${{ matrix.target }}
-        if: always()
+        if: ${{ hashFiles(format('{0}/**/*', matrix.target)) != '' }}
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
         with:
           name: trivy-policy-${{ matrix.target }}
