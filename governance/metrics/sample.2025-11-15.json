@@ -1,0 +1,36 @@
+{
+  "slo": {
+    "availability": "99.9%",
+    "latency_p95_ms": 500,
+    "error_budget_policy": "halt scale if budget < 50%"
+  },
+  "sla": {
+    "response_time_business_hours": "< 4h",
+    "resolution_time": "< 3 business days"
+  },
+  "cpo": {
+    "estimate_usd": 0.0025,
+    "assumptions": ["current infra usage", "CI minutes", "artifact storage"]
+  },
+  "cac": {
+    "applicable": false,
+    "notes": "N/A for internal skill development"
+  },
+  "proof": {
+    "kpi": ">= 10 qualified outreach/week, reply rate >= 10%",
+    "validation_period_weeks": 2
+  },
+  "rollout_plan": {
+    "stages": [
+      "dev-only",
+      "internal beta",
+      "limited external",
+      "general availability"
+    ],
+    "rollback_criteria": [
+      "reply rate < 5% for 2 weeks",
+      "security regression",
+      "operational cost > 2x baseline"
+    ]
+  }
+}
