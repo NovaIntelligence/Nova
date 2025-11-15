@@ -8,7 +8,7 @@ jobs:
   scorecard:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Compute simple quality metrics
         shell: pwsh
         continue-on-error: true
